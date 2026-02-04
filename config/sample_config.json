@@ -1,0 +1,5 @@
+{
+  "log_path": "./logs/automation_orchestrator.log",
+  "log_level": "INFO",
+  "workflows": []
+}

@@ -1,0 +1,351 @@
+"""
+CRM Connector Interface
+Generic interface for connecting to various CRM systems
+"""
+import logging
+from typing import Dict, List, Any, Optional
+from abc import ABC, abstractmethod
+import json
+import requests
+
+
+class CRMConnector(ABC):
+    """Abstract base class for CRM connectors"""
+    
+    @abstractmethod
+    def create_or_update_lead(self, lead: Dict[str, Any]) -> bool:
+        """Create or update a lead in the CRM"""
+        pass
+    
+    @abstractmethod
+    def get_lead(self, lead_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a lead from the CRM"""
+        pass
+    
+    @abstractmethod
+    def list_leads(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        """List leads from the CRM"""
+        pass
+
+
+class GenericAPIConnector(CRMConnector):
+    """Generic REST API connector for CRM systems"""
+    
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize generic API connector
+        
+        Args:
+            config: CRM configuration
+        """
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        self.base_url = config.get('api_base_url', '')
+        self.auth_headers = self._setup_auth(config.get('auth', {}))
+        
+    def _setup_auth(self, auth_config: Dict[str, Any]) -> Dict[str, str]:
+        """Setup authentication headers"""
+        headers = {}
+        
+        auth_type = auth_config.get('type', 'none')
+        
+        if auth_type == 'bearer':
+            token = auth_config.get('token', '')
+            headers['Authorization'] = f'Bearer {token}'
+        elif auth_type == 'api_key':
+            key_name = auth_config.get('key_name', 'X-API-Key')
+            key_value = auth_config.get('key_value', '')
+            headers[key_name] = key_value
+        
+        return headers
+    
+    def create_or_update_lead(self, lead: Dict[str, Any]) -> bool:
+        """
+        Create or update a lead via REST API
+        
+        Args:
+            lead: Lead data
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            endpoint = self.config.get('create_endpoint', '/leads')
+            url = f"{self.base_url}{endpoint}"
+            
+            # Transform lead data according to mapping
+            payload = self._transform_lead(lead)
+            
+            response = requests.post(
+                url,
+                json=payload,
+                headers=self.auth_headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            
+            self.logger.info(f"Successfully created/updated lead: {lead.get('id')}")
+            return True
+            
+        except requests.RequestException as e:
+            self.logger.error(f"Error creating lead in CRM: {e}", exc_info=True)
+            return False
+    
+    def get_lead(self, lead_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a lead from CRM
+        
+        Args:
+            lead_id: Lead identifier
+            
+        Returns:
+            Lead dictionary or None
+        """
+        try:
+            endpoint = self.config.get('get_endpoint', '/leads/{id}')
+            url = f"{self.base_url}{endpoint}".replace('{id}', lead_id)
+            
+            response = requests.get(
+                url,
+                headers=self.auth_headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.RequestException as e:
+            self.logger.error(f"Error retrieving lead from CRM: {e}")
+            return None
+    
+    def list_leads(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        """
+        List leads from CRM
+        
+        Args:
+            filters: Optional filters
+            
+        Returns:
+            List of lead dictionaries
+        """
+        try:
+            endpoint = self.config.get('list_endpoint', '/leads')
+            url = f"{self.base_url}{endpoint}"
+            
+            response = requests.get(
+                url,
+                params=filters or {},
+                headers=self.auth_headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            data = response.json()
+            
+            # Handle different response structures
+            if isinstance(data, list):
+                return data
+            elif isinstance(data, dict):
+                data_key = self.config.get('list_data_key', 'data')
+                return data.get(data_key, [])
+            
+            return []
+            
+        except requests.RequestException as e:
+            self.logger.error(f"Error listing leads from CRM: {e}")
+            return []
+    
+    def _transform_lead(self, lead: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform lead data according to CRM field mapping
+        
+        Args:
+            lead: Lead data
+            
+        Returns:
+            Transformed lead data
+        """
+        field_mapping = self.config.get('field_mapping', {})
+        
+        if not field_mapping:
+            return lead
+        
+        transformed = {}
+        for crm_field, lead_field in field_mapping.items():
+            if lead_field in lead:
+                transformed[crm_field] = lead[lead_field]
+        
+        return transformed
+
+
+class GoogleSheetsConnector(CRMConnector):
+    """Google Sheets connector for simple CRM"""
+    
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Google Sheets connector
+        
+        Args:
+            config: CRM configuration with spreadsheet_id and credentials
+        """
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        self.spreadsheet_id = config.get('spreadsheet_id')
+        self.sheet_name = config.get('sheet_name', 'Leads')
+        
+        # Note: Requires google-auth and google-api-python-client
+        # Implementation simplified for demo
+        self.logger.warning("Google Sheets connector requires additional setup")
+    
+    def create_or_update_lead(self, lead: Dict[str, Any]) -> bool:
+        """Append lead to Google Sheet"""
+        try:
+            # Implementation would use Google Sheets API
+            self.logger.info(f"Would append lead to sheet: {lead.get('id')}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error writing to Google Sheets: {e}")
+            return False
+    
+    def get_lead(self, lead_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve lead from Google Sheet"""
+        self.logger.warning("Get lead not implemented for Google Sheets")
+        return None
+    
+    def list_leads(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        """List leads from Google Sheet"""
+        self.logger.warning("List leads not implemented for Google Sheets")
+        return []
+
+
+class AirtableConnector(CRMConnector):
+    """Airtable connector"""
+    
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Airtable connector
+        
+        Args:
+            config: CRM configuration with base_id, table_name, api_key
+        """
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        self.base_id = config.get('base_id')
+        self.table_name = config.get('table_name', 'Leads')
+        self.api_key = config.get('api_key')
+        self.base_url = f"https://api.airtable.com/v0/{self.base_id}/{self.table_name}"
+    
+    def create_or_update_lead(self, lead: Dict[str, Any]) -> bool:
+        """Create lead record in Airtable"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'fields': self._transform_lead(lead)
+            }
+            
+            response = requests.post(
+                self.base_url,
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            self.logger.info(f"Created lead in Airtable: {lead.get('id')}")
+            return True
+            
+        except requests.RequestException as e:
+            self.logger.error(f"Error creating lead in Airtable: {e}")
+            return False
+    
+    def get_lead(self, lead_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve lead from Airtable"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.api_key}'
+            }
+            
+            # Search by formula
+            params = {
+                'filterByFormula': f"{{Lead ID}} = '{lead_id}'"
+            }
+            
+            response = requests.get(
+                self.base_url,
+                params=params,
+                headers=headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            records = response.json().get('records', [])
+            
+            if records:
+                return records[0].get('fields', {})
+            return None
+            
+        except requests.RequestException as e:
+            self.logger.error(f"Error retrieving lead from Airtable: {e}")
+            return None
+    
+    def list_leads(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        """List leads from Airtable"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.api_key}'
+            }
+            
+            response = requests.get(
+                self.base_url,
+                headers=headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            records = response.json().get('records', [])
+            
+            return [record.get('fields', {}) for record in records]
+            
+        except requests.RequestException as e:
+            self.logger.error(f"Error listing leads from Airtable: {e}")
+            return []
+    
+    def _transform_lead(self, lead: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform lead for Airtable"""
+        field_mapping = self.config.get('field_mapping', {})
+        
+        if field_mapping:
+            transformed = {}
+            for airtable_field, lead_field in field_mapping.items():
+                if lead_field in lead:
+                    transformed[airtable_field] = lead[lead_field]
+            return transformed
+        
+        return lead
+
+
+def create_crm_connector(config: Dict[str, Any]) -> CRMConnector:
+    """
+    Factory function to create appropriate CRM connector
+    
+    Args:
+        config: CRM configuration
+        
+    Returns:
+        CRM connector instance
+    """
+    crm_type = config.get('type', 'generic_api')
+    
+    if crm_type == 'generic_api':
+        return GenericAPIConnector(config)
+    elif crm_type == 'google_sheets':
+        return GoogleSheetsConnector(config)
+    elif crm_type == 'airtable':
+        return AirtableConnector(config)
+    else:
+        raise ValueError(f"Unsupported CRM type: {crm_type}")

@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and reports
+logs/
+reports/
+*.log
+*.log.gz
+
+# Secrets
+*.key
+*.pem
+*.env
+logs/.audit_secret
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+pytest.ini
+.pytest_cache/
+
+# Build
+build/
+dist/
+*.egg-info/
