@@ -33,9 +33,9 @@ audit = get_audit_logger()
 
 class LeadData(BaseModel):
     """Lead data model"""
-    first_name: str
-    last_name: str
-    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
     source: Optional[str] = None
