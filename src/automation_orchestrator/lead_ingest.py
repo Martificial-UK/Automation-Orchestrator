@@ -11,7 +11,11 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
 import re
+import hashlib
 from automation_orchestrator.audit import get_audit_logger
+from automation_orchestrator.security import (
+    InputValidator, EmailValidator, PIIManager, OutputSanitizer
+)
 
 
 class LeadIngest:
@@ -122,6 +126,11 @@ class LeadIngest:
         field_mapping = source_config.get('field_mapping', {})
         
         for item in data:
+            # SECURITY: Validate item is a dictionary
+            if not isinstance(item, dict):
+                self.logger.warning(f"Skipping non-dict item: {type(item)}")
+                continue
+            
             lead = {
                 'id': self._generate_lead_id(item, source_config),
                 'source': 'web_form',
@@ -129,13 +138,27 @@ class LeadIngest:
                 'ingested_at': datetime.utcnow().isoformat()
             }
             
-            # Apply field mapping
+            # Apply field mapping with validation
             if field_mapping:
                 for dest_field, source_field in field_mapping.items():
-                    lead[dest_field] = item.get(source_field, '')
+                    value = item.get(source_field, '')
+                    # Validate specific fields
+                    if dest_field == 'email' and value:
+                        try:
+                            value = EmailValidator.validate_email(value)
+                        except ValueError as e:
+                            self.logger.warning(f"Invalid email in lead: {e}")
+                            value = None
+                    lead[dest_field] = value
             else:
-                # No mapping - use all fields
-                lead.update(item)
+                # No mapping - use all fields but validate
+                for key, value in item.items():
+                    if key == 'email' and value:
+                        try:
+                            value = EmailValidator.validate_email(value)
+                        except ValueError:
+                            value = None
+                    lead[key] = value
             
             leads.append(lead)
         
@@ -306,7 +329,7 @@ class LeadIngest:
     
     def _generate_lead_id(self, data: Dict[str, Any], source_config: Dict[str, Any]) -> str:
         """
-        Generate unique lead ID
+        Generate unique lead ID with validation
         
         Args:
             data: Lead data
@@ -318,9 +341,27 @@ class LeadIngest:
         id_field = source_config.get('id_field', 'id')
         
         if id_field in data:
-            return str(data[id_field])
+            lead_id = str(data[id_field])
+            try:
+                # SECURITY: Validate lead ID format
+                return InputValidator.validate_lead_id(lead_id)
+            except ValueError:
+                self.logger.warning(f"Invalid lead ID format, generating new: {lead_id}")
         
-        # Generate ID from email or timestamp
+        # Generate ID from email or timestamp - secure approach using hash
         email_val = data.get('email', '')
-        timestamp = datetime.utcnow().timestamp()
-        return f"{source_config.get('name', 'web')}_{email_val}_{timestamp}"
+        source_name = source_config.get('name', 'web')
+        timestamp = int(datetime.utcnow().timestamp())
+        
+        # Create safe ID using hashing
+        if email_val:
+            try:
+                EmailValidator.validate_email(email_val)
+                # Use first 3 chars of hash for uniqueness
+                unique_part = hashlib.sha256(f"{email_val}_{timestamp}".encode()).hexdigest()[:8]
+            except ValueError:
+                unique_part = hashlib.sha256(str(timestamp).encode()).hexdigest()[:8]
+        else:
+            unique_part = hashlib.sha256(str(timestamp).encode()).hexdigest()[:8]
+        
+        return f"{source_name[:10]}_{unique_part}_{timestamp}"

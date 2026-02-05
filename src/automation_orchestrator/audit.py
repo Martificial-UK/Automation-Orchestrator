@@ -25,6 +25,12 @@ from urllib.parse import urlparse
 from collections import defaultdict, deque
 import requests
 
+# Security imports
+from automation_orchestrator.security import (
+    InputValidator, EmailValidator, PathValidator, 
+    PIIManager, OutputSanitizer
+)
+
 logger = logging.getLogger(__name__)
 
 # Security constants
@@ -949,7 +955,18 @@ class AuditLogger:
         sequence_step: int,
         workflow: str
     ) -> None:
-        """Log email sent event."""
+        """Log email sent event with validation (prevents SMTP injection)."""
+        # SECURITY: Validate email address to prevent SMTP injection
+        try:
+            recipient = EmailValidator.validate_email(recipient)
+            subject = EmailValidator.sanitize_header(subject, 500)
+        except ValueError as e:
+            self._log_security_event(
+                "invalid_email_logged",
+                {"error": str(e), "workflow": workflow}
+            )
+            raise
+        
         self.log_event(
             event_type="email_sent",
             details={
@@ -968,7 +985,17 @@ class AuditLogger:
         sequence_length: int,
         workflow: str
     ) -> None:
-        """Log email sequence scheduled."""
+        """Log email sequence scheduled with validation."""
+        # SECURITY: Validate email address
+        try:
+            recipient = EmailValidator.validate_email(recipient)
+        except ValueError as e:
+            self._log_security_event(
+                "invalid_email_logged",
+                {"error": str(e), "workflow": workflow}
+            )
+            raise
+        
         self.log_event(
             event_type="email_scheduled",
             details={
@@ -986,7 +1013,18 @@ class AuditLogger:
         reason: str,
         workflow: str
     ) -> None:
-        """Log email sequence cancellation."""
+        """Log email sequence cancellation with validation."""
+        # SECURITY: Validate email address
+        try:
+            recipient = EmailValidator.validate_email(recipient)
+            reason = EmailValidator.sanitize_header(reason, 500)
+        except ValueError as e:
+            self._log_security_event(
+                "invalid_email_logged",
+                {"error": str(e), "workflow": workflow}
+            )
+            raise
+        
         self.log_event(
             event_type="email_cancelled",
             details={

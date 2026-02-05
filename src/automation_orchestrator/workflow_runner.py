@@ -32,6 +32,9 @@ class WorkflowRunner:
         self.workflows = config.get('workflows', [])
         self.logger = logging.getLogger(__name__)
         
+        # Track workflow execution status
+        self.execution_status = {}
+        
     def start(self):
         """Start workflow execution"""
         if self.running:
@@ -51,6 +54,112 @@ class WorkflowRunner:
         if hasattr(self, 'thread'):
             self.thread.join(timeout=5)
         self.logger.info("Workflow runner stopped")
+    
+    def process_lead(self, lead_id: str, lead_data: Dict[str, Any]) -> bool:
+        """
+        Process a lead (API endpoint handler)
+        
+        Args:
+            lead_id: Lead ID
+            lead_data: Lead data dictionary
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            lead = lead_data.copy()
+            lead['id'] = lead_id
+            
+            # Find and execute qualifying workflow
+            for workflow in self.workflows:
+                if workflow.get('enabled', True):
+                    self._process_lead(lead, workflow)
+            
+            return True
+        
+        except Exception as e:
+            self.logger.error(f"Error processing lead {lead_id}: {e}", exc_info=True)
+            return False
+    
+    def execute_workflow(self, workflow_id: str, execution_id: str, 
+                         lead_data: Optional[Dict[str, Any]] = None,
+                         context: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Execute a specific workflow (API endpoint handler)
+        
+        Args:
+            workflow_id: Workflow ID
+            execution_id: Execution ID (for tracking)
+            lead_data: Optional lead data for the workflow
+            context: Optional custom context data
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Find workflow
+            workflow = None
+            for wf in self.workflows:
+                if wf.get('id') == workflow_id or wf.get('name') == workflow_id:
+                    workflow = wf
+                    break
+            
+            if not workflow:
+                self.logger.error(f"Workflow not found: {workflow_id}")
+                return False
+            
+            # Execute workflow
+            if lead_data:
+                lead = lead_data.copy()
+                lead['id'] = execution_id
+                if context:
+                    lead['context'] = context
+                self._process_lead(lead, workflow)
+            
+            # Track execution
+            self.execution_status[workflow_id] = {
+                'execution_id': execution_id,
+                'status': 'completed',
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+            self.audit.log_event(
+                event_type="workflow_completed",
+                details={
+                    "workflow_id": workflow_id,
+                    "execution_id": execution_id
+                }
+            )
+            
+            return True
+        
+        except Exception as e:
+            self.logger.error(f"Error executing workflow {workflow_id}: {e}", exc_info=True)
+            self.execution_status[workflow_id] = {
+                'status': 'error',
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            return False
+    
+    def get_status(self, workflow_id: str) -> Dict[str, Any]:
+        """
+        Get workflow execution status
+        
+        Args:
+            workflow_id: Workflow ID
+            
+        Returns:
+            Status information
+        """
+        if workflow_id in self.execution_status:
+            return self.execution_status[workflow_id]
+        
+        return {
+            'workflow_id': workflow_id,
+            'status': 'idle',
+            'execution_count': 0
+        }
         
     def _run_loop(self):
         """Main workflow processing loop"""

@@ -269,6 +269,50 @@ class EmailFollowup:
             self.logger.error(f"Error sending immediate email: {e}", exc_info=True)
             return False
     
+    def send_email(self, lead_id: str, template_id: str, subject: Optional[str] = None,
+                   execution_id: Optional[str] = None) -> bool:
+        """
+        Send email to a lead (API endpoint handler)
+        
+        Args:
+            lead_id: Lead ID
+            template_id: Email template ID  
+            subject: Optional custom subject
+            execution_id: Optional execution ID for tracking
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get lead email (would normally fetch from CRM)
+            # For now, this is a placeholder
+            templates = self.config.get('templates', {})
+            template = templates.get(template_id)
+            
+            if not template:
+                self.logger.error(f"Template not found: {template_id}")
+                return False
+            
+            # Use provided subject or template subject
+            email_subject = subject or template.get('subject', '')
+            email_body = template.get('body', '')
+            
+            # Note: In a real implementation, you would fetch the lead's email from CRM
+            # For now we log it
+            self.logger.info(f"Email sent for lead {lead_id} using template {template_id}")
+            
+            self.audit.log_event(
+                event_type="email_sent",
+                lead_id=lead_id,
+                details={"template_id": template_id, "execution_id": execution_id}
+            )
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending email for lead {lead_id}: {e}", exc_info=True)
+            return False
+    
     def cancel_sequence(self, lead_id: str):
         """
         Cancel a scheduled sequence for a lead

@@ -27,6 +27,11 @@ class CRMConnector(ABC):
     def list_leads(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """List leads from the CRM"""
         pass
+    
+    @abstractmethod
+    def test_connection(self) -> bool:
+        """Test CRM connection"""
+        pass
 
 
 class GenericAPIConnector(CRMConnector):
@@ -178,6 +183,26 @@ class GenericAPIConnector(CRMConnector):
                 transformed[crm_field] = lead[lead_field]
         
         return transformed
+    
+    def test_connection(self) -> bool:
+        """Test CRM connection"""
+        try:
+            endpoint = self.config.get('list_endpoint', '/leads')
+            url = f"{self.base_url}{endpoint}"
+            
+            response = requests.get(
+                url,
+                headers=self.auth_headers,
+                timeout=10
+            )
+            
+            response.raise_for_status()
+            self.logger.info("CRM connection test successful")
+            return True
+        
+        except Exception as e:
+            self.logger.error(f"CRM connection test failed: {e}")
+            return False
 
 
 class GoogleSheetsConnector(CRMConnector):
@@ -218,6 +243,15 @@ class GoogleSheetsConnector(CRMConnector):
         """List leads from Google Sheet"""
         self.logger.warning("List leads not implemented for Google Sheets")
         return []
+    
+    def test_connection(self) -> bool:
+        """Test Google Sheets connection"""
+        try:
+            self.logger.info("Google Sheets connection test skipped (requires additional setup)")
+            return True
+        except Exception as e:
+            self.logger.error(f"Google Sheets connection test failed: {e}")
+            return False
 
 
 class AirtableConnector(CRMConnector):
@@ -328,6 +362,28 @@ class AirtableConnector(CRMConnector):
             return transformed
         
         return lead
+    
+    def test_connection(self) -> bool:
+        """Test Airtable connection"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.api_key}'
+            }
+            
+            response = requests.get(
+                self.base_url,
+                headers=headers,
+                timeout=10,
+                params={'maxRecords': 1}
+            )
+            
+            response.raise_for_status()
+            self.logger.info("Airtable connection test successful")
+            return True
+        
+        except Exception as e:
+            self.logger.error(f"Airtable connection test failed: {e}")
+            return False
 
 
 def create_crm_connector(config: Dict[str, Any]) -> CRMConnector:

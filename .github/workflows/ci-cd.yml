@@ -1,0 +1,222 @@
+# GitHub Actions CI/CD Pipeline
+# Triggers on push to main and pull requests
+# Runs security checks, tests, builds Docker image, and deploys to staging
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/ci-cd.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Security scanning
+  security:
+    runs-on: ubuntu-latest
+    name: Security Checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install security tools
+        run: |
+          pip install bandit safety semgrep
+
+      - name: Run Bandit security linter
+        run: bandit -r src/automation_orchestrator -f json -o bandit-report.json || true
+        continue-on-error: true
+
+      - name: Check dependencies for vulnerabilities
+        run: safety check --json > safety-report.json || true
+        continue-on-error: true
+
+      - name: Run Semgrep
+        run: semgrep --config=p/security-audit --json --output=semgrep-report.json src/automation_orchestrator || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+            semgrep-report.json
+
+  # Linting and code quality
+  lint:
+    runs-on: ubuntu-latest
+    name: Code Quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 pylint black isort
+
+      - name: Check code formatting (Black)
+        run: black --check src/automation_orchestrator
+        continue-on-error: true
+
+      - name: Sort imports (isort)
+        run: isort --check-only src/automation_orchestrator
+        continue-on-error: true
+
+      - name: Run Flake8
+        run: flake8 src/automation_orchestrator --max-line-length=100 --extend-ignore=E203,W503
+        continue-on-error: true
+
+      - name: Run Pylint
+        run: pylint src/automation_orchestrator --disable=all --enable=E,F
+        continue-on-error: true
+
+  # Unit tests
+  test:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_orchestrator
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run unit tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_orchestrator
+        run: pytest tests/ -v --cov=src/automation_orchestrator --cov-report=xml --cov-report=html
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            .coverage
+            htmlcov/
+
+  # Docker image build
+  build:
+    runs-on: ubuntu-latest
+    name: Build Docker Image
+    needs: [security, lint, test]
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy to staging (optional, requires deployment configuration)
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your deployment commands here
+          # Example: kubectl apply -f k8s/staging/ --kubeconfig=${{ secrets.KUBE_CONFIG }}
+
+  # Notify deployment status
+  notify:
+    runs-on: ubuntu-latest
+    name: Notify Deployment
+    needs: [build, deploy-staging]
+    if: always()
+    steps:
+      - name: Send notification
+        env:
+          STATUS: ${{ job.status }}
+        run: |
+          echo "Pipeline Status: ${{ env.STATUS }}"
+          # Add your notification logic here (Slack, email, etc.)

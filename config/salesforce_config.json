@@ -1,0 +1,58 @@
+{
+  "log_path": "./logs/automation_orchestrator.log",
+  "log_level": "INFO",
+  "crm": {
+    "crm_type": "salesforce",
+    "instance_url": "https://na1.salesforce.com",
+    "client_id": "your_salesforce_client_id",
+    "client_secret": "your_salesforce_client_secret",
+    "username": "your_salesforce_username@example.com",
+    "password": "your_salesforce_password",
+    "security_token": "your_salesforce_security_token",
+    "field_mapping": {
+      "source": "LeadSource",
+      "company": "Company"
+    }
+  },
+  "lead_ingest": {
+    "sources": [
+      {
+        "type": "web_form",
+        "endpoint": "https://api.example.com/leads",
+        "method": "GET",
+        "headers": {
+          "Accept": "application/json"
+        }
+      }
+    ]
+  },
+  "email": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "noreply@example.com",
+    "sender_password": "your_email_password"
+  },
+  "workflow": {
+    "poll_interval": 60,
+    "workflows": [
+      {
+        "name": "lead_qualification",
+        "enabled": true,
+        "trigger": "lead_ingested",
+        "steps": [
+          {
+            "type": "qualify",
+            "criteria": "email_domain"
+          },
+          {
+            "type": "crm_create"
+          },
+          {
+            "type": "email_send",
+            "template": "welcome"
+          }
+        ]
+      }
+    ]
+  }
+}
