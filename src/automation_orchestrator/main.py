@@ -135,11 +135,7 @@ def run_api(config: dict, host: str = "0.0.0.0", port: int = 8000) -> None:
             app,
             host=host,
             port=port,
-            log_level="info",
-            workers=1,  # Single worker (can add more for production)
-            loop="auto",  # Use best available event loop
-            http="httptools",  # Use optimized HTTP parser
-            interface="auto"  # Auto-detect interface
+            log_level="info"
         )
     
     except ImportError as e:
