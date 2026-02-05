@@ -7,6 +7,19 @@ from locust import HttpUser, task, between, events
 from datetime import datetime
 import json
 import time
+import ssl
+import urllib3
+
+# Disable SSL warnings for testing
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Configure connection pooling
+urllib3.PoolManager(
+    num_pools=10,
+    maxsize=50,
+    block=False,
+    strict=False
+)
 
 
 class AutomationOrchestratorUser(HttpUser):
@@ -14,6 +27,17 @@ class AutomationOrchestratorUser(HttpUser):
     
     wait_time = between(1, 3)  # Wait 1-3 seconds between requests
     token = None  # Store JWT token after login
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Configure client connection pooling
+        self.client.pool_manager = urllib3.PoolManager(
+            num_pools=10,
+            maxsize=50,
+            timeout=urllib3.Timeout(connect=2.0, read=5.0),
+            block=False,
+            strict=False
+        )
     
     def on_start(self):
         """Called when a simulated user starts"""
@@ -127,12 +151,37 @@ class AutomationOrchestratorUser(HttpUser):
     
     @task(2)
     def get_lead_details(self):
-        """Get lead details - 2% of traffic"""
+        """Get lead details - 2% of traffic (cycles through seeded leads)"""
         headers = self.get_headers()
+        # Cycle through seeded test leads
+        lead_id = f"lead-{(int(time.time()) % 3) + 1}"
         self.client.get(
-            "/api/leads/lead-1",
+            f"/api/leads/{lead_id}",
             headers=headers,
             name="/api/leads/{id}"
+        )
+    
+    @task(1)
+    def update_lead(self):
+        """Update existing lead - 1% of traffic"""
+        headers = self.get_headers()
+        headers["Content-Type"] = "application/json"
+        
+        # Update one of the seeded leads
+        lead_id = f"lead-{(int(time.time()) % 3) + 1}"
+        
+        update_data = {
+            "email": f"updated-{lead_id}@example.com",
+            "first_name": "Updated",
+            "last_name": "User",
+            "company": "Updated Corp"
+        }
+        
+        self.client.put(
+            f"/api/leads/{lead_id}",
+            json=update_data,
+            headers=headers,
+            name="/api/leads/{id} [PUT]"
         )
     
     # ==================== CRM CONFIG ENDPOINTS ====================
