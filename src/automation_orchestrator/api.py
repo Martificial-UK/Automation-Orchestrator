@@ -21,6 +21,9 @@ from automation_orchestrator.deduplication import DeduplicationEngine
 from automation_orchestrator.rbac import RBACManager, Role, Permission, User
 from automation_orchestrator.analytics import Analytics
 from automation_orchestrator.multi_tenancy import TenantManager, TenantContext
+from automation_orchestrator.monitoring import (
+    setup_json_logging, MetricsCollector, AlertManager, PerformanceTracker
+)
 from automation_orchestrator.auth import (
     JWTHandler, PasswordHasher, APIKeyManager, UserStore, JWT_SECRET,
     global_user_store, LoginRequest, LoginResponse, APIKeyCreateRequest,
@@ -185,6 +188,22 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     # Redis queue (required in production when enabled)
     app.state.redis_queue = get_queue(config.get("redis", {}))
 
+    # Production Monitoring & Logging Setup
+    log_cfg = config.get("logging", {})
+    log_level = getattr(logging, log_cfg.get("level", "INFO"))
+    log_dir = log_cfg.get("directory", "logs")
+    setup_json_logging(log_dir=log_dir, level=log_level)
+    
+    # Initialize monitoring components
+    app.state.metrics_collector = MetricsCollector(max_history=1440)
+    app.state.alert_manager = AlertManager()
+    app.state.performance_tracker = PerformanceTracker()
+    
+    logger.info("Production monitoring initialized", extra={'extra_fields': {
+        'log_level': log_cfg.get("level", "INFO"),
+        'log_dir': log_dir
+    }})
+
     # Runtime metrics
     app.state.start_time = time.time()
     app.state.metrics = {
@@ -279,7 +298,10 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     async def auth_rate_limit_metrics_middleware(request: Request, call_next):
         start = time.time()
         path = request.url.path
+        method = request.method
         user = None
+        status_code = 500
+        error_msg = None
 
         if app.state.auth_enabled and not _is_public_path(path):
             user = _authenticate_request(request)
@@ -308,17 +330,49 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
 
         try:
             response = await call_next(request)
-        except Exception:
+            status_code = response.status_code
+        except Exception as e:
             app.state.metrics["requests_failed"] += 1
+            error_msg = str(e)
+            # Log the exception
+            logger.exception(f"Unhandled exception in {method} {path}", extra={
+                'extra_fields': {
+                    'path': path,
+                    'method': method,
+                    'error': error_msg
+                }
+            })
             raise
         finally:
             duration_ms = (time.time() - start) * 1000.0
+            
+            # Update legacy metrics
             app.state.metrics["requests_total"] += 1
             app.state.metrics["latency_total_ms"] += duration_ms
             if duration_ms > app.state.metrics["latency_max_ms"]:
                 app.state.metrics["latency_max_ms"] = duration_ms
+            
+            # Record in new metrics collector
+            app.state.metrics_collector.record_request(
+                endpoint=path,
+                method=method,
+                status_code=status_code,
+                latency_ms=duration_ms,
+                error=error_msg
+            )
+            
+            # Log request
+            logger.info(f"{method} {path} {status_code}", extra={
+                'extra_fields': {
+                    'method': method,
+                    'path': path,
+                    'status_code': status_code,
+                    'duration_ms': round(duration_ms, 2),
+                    'user': user.user_id if user else 'anonymous'
+                }
+            })
 
-        if response.status_code >= 400:
+        if status_code >= 400:
             app.state.metrics["requests_failed"] += 1
 
         return response
@@ -441,34 +495,81 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     
     @app.get("/metrics", tags=["Status"])
     async def metrics_endpoint():
-        """Get system metrics"""
-        total = app.state.metrics.get("requests_total", 0)
-        failed = app.state.metrics.get("requests_failed", 0)
-        latency_total = app.state.metrics.get("latency_total_ms", 0.0)
-        latency_max = app.state.metrics.get("latency_max_ms", 0.0)
-        avg_latency = (latency_total / total) if total else 0.0
-        uptime = time.time() - app.state.start_time
-
+        """Get comprehensive system metrics with monitoring data"""
+        # Get summary from the MetricsCollector
+        summary = app.state.metrics_collector.get_summary()
+        
+        # Check thresholds and generate alerts
+        active_alerts = app.state.alert_manager.check_thresholds(summary)
+        
+        # Add queue depth metric
         queue_depth = app.state.redis_queue.get_queue_depth("default") if app.state.redis_queue else 0
         if queue_depth >= app.state.queue_depth_warn:
             logger.warning(f"Queue depth high: {queue_depth}")
-
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "metrics": {
-                "requests_total": total,
-                "requests_failed": failed,
-                "avg_latency_ms": round(avg_latency, 2),
-                "max_latency_ms": round(latency_max, 2),
-                "uptime_seconds": int(uptime),
-                "queue_depth": queue_depth
-            },
-            "rate_limit": {
-                "enabled": app.state.rate_limit_enabled,
-                "window_seconds": app.state.rate_limit_window,
-                "max_requests": app.state.rate_limit_max
-            }
+        
+        summary['metrics']['queue_depth'] = queue_depth
+        summary['active_alerts'] = active_alerts
+        summary['rate_limit'] = {
+            'enabled': app.state.rate_limit_enabled,
+            'window_seconds': app.state.rate_limit_window,
+            'max_requests': app.state.rate_limit_max
         }
+        
+        return summary
+    
+    @app.get("/api/monitoring/alerts", tags=["Monitoring"])
+    async def get_active_alerts():
+        """Get active system alerts"""
+        summary = app.state.metrics_collector.get_summary()
+        alerts = app.state.alert_manager.check_thresholds(summary)
+        
+        return {
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'alert_count': len(alerts),
+            'alerts': alerts
+        }
+    
+    @app.get("/api/monitoring/performance", tags=["Monitoring"])
+    async def get_performance_metrics():
+        """Get detailed performance metrics by operation"""
+        stats = {}
+        for op_name in app.state.performance_tracker.operations.keys():
+            stats[op_name] = app.state.performance_tracker.get_operation_stats(op_name)
+        
+        return {
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'operations': stats
+        }
+    
+    @app.post("/api/monitoring/alerts/threshold", tags=["Monitoring"])
+    async def update_alert_threshold(alert_type: str, threshold: float):
+        """Update alert threshold"""
+        app.state.alert_manager.set_threshold(alert_type, threshold)
+        
+        logger.info(f"Alert threshold updated: {alert_type} = {threshold}", extra={
+            'extra_fields': {
+                'alert_type': alert_type,
+                'new_threshold': threshold
+            }
+        })
+        
+        return {
+            'status': 'success',
+            'alert_type': alert_type,
+            'threshold': threshold
+        }
+    
+    @app.post("/api/monitoring/metrics/export", tags=["Monitoring"])
+    async def export_metrics(output_dir: str = "metrics"):
+        """Export current metrics to JSON file"""
+        filepath = app.state.metrics_collector.export_daily_summary(output_dir)
+        
+        return {
+            'status': 'success',
+            'filepath': filepath,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
     
     # ========================================================================
     # Authentication Endpoints

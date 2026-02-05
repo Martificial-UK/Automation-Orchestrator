@@ -1,6 +1,11 @@
 {
   "log_path": "./logs/automation_orchestrator.log",
   "log_level": "INFO",
+  "logging": {
+    "level": "INFO",
+    "directory": "logs",
+    "format": "json"
+  },
   "workflows": [],
   "crm": {
     "api_base_url": "http://localhost:8000",
@@ -43,7 +48,9 @@
     "required": false
   },
   "monitoring": {
-    "queue_depth_warn": 1000
+    "queue_depth_warn": 1000,
+    "error_rate_threshold": 5.0,
+    "latency_threshold_ms": 500.0
   },
   "license": {
     "enabled": true,
@@ -68,10 +75,15 @@
       "/api/crm/status",
       "/api/auth/me",
       "/api/license/status",
-      "/api/license/purchase"
+      "/api/license/purchase",
+      "/api/monitoring/",
+      "/api/monitoring/alerts",
+      "/api/monitoring/performance"
     ],
     "demo_write_allowlist": [
-      "/api/license/activate"
+      "/api/license/activate",
+      "/api/monitoring/alerts/threshold",
+      "/api/monitoring/metrics/export"
     ]
   }
 }
