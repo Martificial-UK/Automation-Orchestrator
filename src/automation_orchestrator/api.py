@@ -567,16 +567,19 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             Updated lead info
         """
         try:
+            # Get existing lead from cache or create new entry
+            existing_lead = app.state.leads_cache.get(lead_id, {})
+            
             # Update in cache immediately (fast path)
             lead_dict = {
                 "id": lead_id,
-                "first_name": lead.first_name,
-                "last_name": lead.last_name,
-                "email": lead.email,
-                "phone": lead.phone,
-                "company": lead.company,
-                "source": lead.source or "api",
-                "created_at": app.state.leads_cache.get(lead_id, {}).get("created_at", datetime.now().isoformat()),
+                "first_name": lead.first_name or existing_lead.get("first_name", ""),
+                "last_name": lead.last_name or existing_lead.get("last_name", ""),
+                "email": lead.email or existing_lead.get("email", ""),
+                "phone": lead.phone or existing_lead.get("phone", ""),
+                "company": lead.company or existing_lead.get("company", ""),
+                "source": lead.source or existing_lead.get("source", "api"),
+                "created_at": existing_lead.get("created_at", datetime.now().isoformat()),
                 "status": "active"
             }
             
@@ -590,10 +593,23 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
                     lead_dict
                 )
             
+            # Build updated fields dict for audit
+            updated_fields = {}
+            if lead.first_name:
+                updated_fields["first_name"] = lead.first_name
+            if lead.last_name:
+                updated_fields["last_name"] = lead.last_name
+            if lead.email:
+                updated_fields["email"] = lead.email
+            if lead.phone:
+                updated_fields["phone"] = lead.phone
+            if lead.company:
+                updated_fields["company"] = lead.company
+                
             audit.log_event(
                 event_type="crm_update",
                 lead_id=lead_id,
-                details={"updated_fields": list(lead.dict().keys())}
+                details={"updated_fields": list(updated_fields.keys())}
             )
             
             return LeadResponse(

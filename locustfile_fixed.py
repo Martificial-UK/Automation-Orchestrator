@@ -270,7 +270,7 @@ def print_summary(environment):
     """Print test summary statistics"""
     stats = environment.stats
     
-    print("\n📊 TEST SUMMARY STATISTICS\n")
+    print("\n[TEST SUMMARY STATISTICS]\n")
     print(f"{'Endpoint':<40} {'Reqs':>8} {'Avg (ms)':>10} {'Min (ms)':>10} {'Max (ms)':>10} {'Fail':>8}")
     print("-" * 90)
     
