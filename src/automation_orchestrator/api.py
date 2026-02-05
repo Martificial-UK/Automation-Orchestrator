@@ -219,6 +219,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     app.state.queue_depth_warn = monitor_cfg.get("queue_depth_warn", 1000)
 
     def _is_public_path(path: str) -> bool:
+        # API endpoints that don't require auth
         public_paths = {
             "/health",
             "/health/detailed",
@@ -233,7 +234,15 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             "/api/license/status",
             "/api/license/purchase"
         }
-        return path in public_paths
+        if path in public_paths:
+            return True
+        
+        # Frontend routes (SPA) - allow all non-API routes for React Router
+        # The frontend will handle authentication internally
+        if not path.startswith("/api/"):
+            return True
+            
+        return False
 
     def _authenticate_request(request: Request) -> Optional[User]:
         auth_header = request.headers.get("authorization")
@@ -1270,16 +1279,36 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
         return {"status": "updated", "plan": plan}
     
     # ========================================================================
-    # Dashboard
+    # Frontend Dashboard (React App)
     # ========================================================================
     
-    @app.get("/", tags=["Dashboard"])
-    async def serve_dashboard():
-        """Serve the web dashboard"""
-        dashboard_path = Path(__file__).parent / "dashboard.html"
-        if dashboard_path.exists():
-            return FileResponse(dashboard_path)
-        raise HTTPException(status_code=404, detail="Dashboard not found")
+    # Check if frontend build directory exists
+    frontend_dist_path = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
+    if frontend_dist_path.exists() and (frontend_dist_path / "index.html").exists():
+        # Mount static files (CSS, JS, images)
+        app.mount("/assets", StaticFiles(directory=str(frontend_dist_path / "assets")), name="static")
+        
+        # Serve index.html for root and all non-API routes (SPA routing)
+        @app.get("/", tags=["Dashboard"])
+        @app.get("/{full_path:path}", tags=["Dashboard"])
+        async def serve_frontend(full_path: str = ""):
+            """Serve React frontend for dashboard"""
+            # Don't intercept API/health/metrics routes
+            if full_path.startswith(("api", "health", "metrics", "docs", "redoc", "openapi.json")):
+                raise HTTPException(status_code=404, detail="Not found")
+            
+            # Serve index.html for all other routes (React Router handles internal routing)
+            index_path = frontend_dist_path / "index.html"
+            return FileResponse(index_path)
+    else:
+        # Fallback: Serve old dashboard.html if frontend not built
+        @app.get("/", tags=["Dashboard"])
+        async def serve_legacy_dashboard():
+            """Serve legacy HTML dashboard (requires frontend build for full dashboard)"""
+            dashboard_path = Path(__file__).parent / "dashboard.html"
+            if dashboard_path.exists():
+                return FileResponse(dashboard_path)
+            return {"message": "Build frontend to access dashboard", "instructions": "cd frontend && npm install && npm run build"}
     
     # ========================================================================
     # Error Handlers
