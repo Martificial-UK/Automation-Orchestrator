@@ -1,5 +1,28 @@
 {
   "log_path": "./logs/automation_orchestrator.log",
   "log_level": "INFO",
-  "workflows": []
+  "workflows": [],
+  "crm": {
+    "api_base_url": "http://localhost:8000",
+    "create_endpoint": "/api/leads",
+    "get_endpoint": "/api/leads/{id}",
+    "list_endpoint": "/api/leads",
+    "auth": {
+      "type": "bearer",
+      "token": "demo-token"
+    }
+  },
+  "lead_ingest": {
+    "batch_size": 100,
+    "timeout": 30
+  },
+  "email": {
+    "smtp_server": "localhost",
+    "smtp_port": 587,
+    "from_address": "noreply@automation-orchestrator.local"
+  },
+  "deduplication": {
+    "strategy": "email",
+    "threshold": 0.95
+  }
 }

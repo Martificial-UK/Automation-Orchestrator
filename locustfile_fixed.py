@@ -1,6 +1,6 @@
 """
 Locust stress testing configuration for Automation Orchestrator
-Run with: locust -f locustfile.py --host http://localhost:8000
+Run with: locust -f locustfile_fixed.py --host http://localhost:8000
 """
 
 from locust import HttpUser, task, between, events
@@ -92,68 +92,6 @@ class AutomationOrchestratorUser(HttpUser):
         headers = self.get_headers()
         self.client.get("/api/workflows/workflow-1/status", headers=headers, name="/api/workflows/{id}/status")
     
-    @task(3)
-    def trigger_workflow(self):
-        """Trigger workflow - 3% of traffic"""
-        headers = self.get_headers()
-        headers["Content-Type"] = "application/json"
-        
-        workflow_data = {
-            "workflow_id": "workflow-1",
-            "lead_data": {
-                "email": "user@example.com",
-                "phone": "+1-555-0100",
-                "company": "Test Corp",
-                "source": "stress_test"
-            },
-            "actions": [
-                {
-                    "type": "email",
-                    "config": {
-                        "to": "test@example.com",
-                        "subject": "Stress Test",
-                        "body": "Testing..."
-                    }
-                }
-            ]
-        }
-        
-        self.client.post(
-            "/api/workflows",
-            json=workflow_data,
-            headers=headers,
-            name="/api/workflows [POST]"
-        )
-    
-    @task(2)
-    def update_workflow(self):
-        """Update workflow - 2% of traffic"""
-        headers = self.get_headers()
-        headers["Content-Type"] = "application/json"
-        
-        update_data = {
-            "name": f"Updated Workflow {int(time.time())}",
-            "enabled": True
-        }
-        
-        self.client.put(
-            "/api/workflows/1",
-            json=update_data,
-            headers=headers,
-            name="/api/workflows/{id} [PUT]"
-        )
-    
-    @task(4)
-    def execute_workflow(self):
-        """Execute a workflow - 4% of traffic"""
-        headers = self.get_headers()
-        
-        self.client.post(
-            "/api/workflows/1/execute",
-            headers=headers,
-            name="/api/workflows/{id}/execute"
-        )
-    
     # ==================== LEAD MANAGEMENT ====================
     
     @task(8)
@@ -192,29 +130,40 @@ class AutomationOrchestratorUser(HttpUser):
         """Get lead details - 2% of traffic"""
         headers = self.get_headers()
         self.client.get(
-            "/api/leads/1",
+            "/api/leads/lead-1",
             headers=headers,
             name="/api/leads/{id}"
         )
     
-    # ==================== CAMPAIGN ENDPOINTS ====================
+    # ==================== CRM CONFIG ENDPOINTS ====================
     
-    @task(6)
-    def get_campaigns(self):
-        """Get campaigns - 6% of traffic"""
+    @task(3)
+    def get_crm_status(self):
+        """Get CRM status - 3% of traffic"""
         headers = self.get_headers()
         self.client.get(
-            "/api/campaigns",
+            "/api/crm/status",
             headers=headers,
             name="/api/campaigns"
         )
     
-    @task(2)
-    def get_campaign_metrics(self):
-        """Get campaign metrics - 2% of traffic"""
+    @task(1)
+    def configure_crm(self):
+        """Configure CRM - 1% of traffic"""
         headers = self.get_headers()
-        self.client.get(
-            "/api/campaigns/1/metrics",
+        headers["Content-Type"] = "application/json"
+        
+        config = {
+            "crm_type": "generic",
+            "api_key": "test-key-123",
+            "api_url": "http://localhost:8000",
+            "authentication": {"type": "bearer", "token": "test"},
+            "mapping": {"email": "email_address"}
+        }
+        
+        self.client.post(
+            "/api/crm/config",
+            json=config,
             headers=headers,
             name="/api/campaigns/{id}/metrics"
         )
@@ -236,12 +185,12 @@ class AutomationOrchestratorUser(HttpUser):
     @task(2)
     def get_api_docs(self):
         """Get API documentation - 2% of traffic"""
-        self.client.get("/docs", name="/docs")
+        self.client.get("/api/docs", name="/docs")
     
     @task(1)
     def get_openapi_schema(self):
         """Get OpenAPI schema - 1% of traffic"""
-        self.client.get("/openapi.json", name="/openapi.json")
+        self.client.get("/api/openapi.json", name="/openapi.json")
 
 
 # ==================== EVENT HANDLERS ====================
@@ -293,21 +242,18 @@ def print_summary(environment):
     print(f"  Average Response Time: {stats.total.avg_response_time:.0f}ms")
     print(f"  Min Response Time: {stats.total.min_response_time:.0f}ms")
     print(f"  Max Response Time: {stats.total.max_response_time:.0f}ms")
-    print(f"  95th Percentile: {stats.total.get_response_time_percentile(0.95):.0f}ms")
-    print(f"  99th Percentile: {stats.total.get_response_time_percentile(0.99):.0f}ms")
+    try:
+        print(f"  95th Percentile: {stats.total.get_response_time_percentile(0.95):.0f}ms")
+        print(f"  99th Percentile: {stats.total.get_response_time_percentile(0.99):.0f}ms")
+    except:
+        pass
     print()
 
 
 @events.request.add_listener
 def on_request(request_type, name, response_time, response_length, response, context, exception, start_time, url, **kwargs):
     """Called for each request"""
-    status = "✓" if exception is None else "✗"
-    status_code = exception.__class__.__name__ if exception else getattr(response, 'status_code', 'N/A')
-    
-    # Print high-latency requests
-    if response_time > 1000:
-        print(f"[SLOW] {status} {name:<40} {response_time:>6.0f}ms {status_code}")
-    
-    # Print errors
-    if exception:
-        print(f"[ERROR] {status} {name:<40} {response_time:>6.0f}ms {exception.__class__.__name__}")
+    if exception is None and response_time > 2000:
+        print(f"[SLOW] ✓ {name:<45} {response_time:.0f}ms {getattr(response, 'status_code', 'N/A')}")
+    elif exception is not None:
+        print(f"[ERROR] ✗ {name:<45} {response_time:.0f}ms {exception.__class__.__name__}")

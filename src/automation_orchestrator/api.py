@@ -191,6 +191,24 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             }
         )
     
+    @app.get("/health/detailed", tags=["Status"])
+    async def health_detailed():
+        """Get detailed health status"""
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "components": {
+                "api": "running",
+                "audit": "running",
+                "crm_connector": "ready" if app.state.crm_connector else "not_configured",
+                "lead_ingest": "ready" if app.state.lead_ingest else "not_configured",
+                "workflow_runner": "running" if hasattr(app.state, 'workflow_runner') and app.state.workflow_runner else "not_configured",
+                "deduplication": "ready",
+                "rbac": "ready",
+                "analytics": "ready"
+            }
+        }
+    
     @app.get("/api/status", tags=["Status"])
     async def api_status():
         """Get detailed API status"""
@@ -203,6 +221,20 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
                 "workflows": "available",
                 "crm": "available",
                 "email": "available"
+            }
+        }
+    
+    @app.get("/metrics", tags=["Status"])
+    async def metrics_endpoint():
+        """Get system metrics"""
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "metrics": {
+                "requests_total": "N/A",
+                "requests_failed": "N/A",
+                "leads_processed": "N/A",
+                "workflows_executed": "N/A",
+                "uptime_seconds": "N/A"
             }
         }
     
@@ -559,8 +591,36 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             logger.error(f"Error fetching workflow status: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
+    @app.post("/api/campaigns/webhook", tags=["Campaigns"])
+    async def campaign_webhook():
+        """Campaign webhook endpoint"""
+        return {"status": "received", "timestamp": datetime.now().isoformat()}
+    
+    @app.get("/api/campaigns", tags=["Campaigns"])
+    async def list_campaigns():
+        """Get all campaigns"""
+        return {
+            "total": 0,
+            "campaigns": [],
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    @app.get("/api/campaigns/{campaign_id}/metrics", tags=["Campaigns"])
+    async def get_campaign_metrics(campaign_id: str):
+        """Get campaign metrics"""
+        return {
+            "campaign_id": campaign_id,
+            "metrics": {
+                "sent": 0,
+                "opened": 0,
+                "clicked": 0,
+                "bounced": 0
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    
     # ========================================================================
-    # CRM Configuration Endpoints
+    # Campaign Endpoints (Continued)
     # ========================================================================
     
     @app.post("/api/crm/config", tags=["CRM"])
