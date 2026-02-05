@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { LeadsPage } from '@/pages/LeadsPage';
 import { CampaignsPage } from '@/pages/CampaignsPage';
 import { WorkflowsPage } from '@/pages/WorkflowsPage';
+import { WorkflowBuilderPage } from '@/pages/WorkflowBuilderPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 
@@ -45,6 +46,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <WorkflowsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/builder"
+            element={
+              <ProtectedRoute>
+                <WorkflowBuilderPage />
               </ProtectedRoute>
             }
           />
