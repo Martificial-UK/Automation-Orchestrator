@@ -51,6 +51,9 @@ def _find_redis_server() -> Optional[Path]:
 def _start_process(cmd: List[str], log_name: str, env: Dict[str, str]) -> subprocess.Popen:
     log_file = LOG_DIR / log_name
     log_handle = log_file.open("a", encoding="utf-8")
+    log_handle.write(f"[{_now_iso()}] Starting: {' '.join(cmd)}\n")
+    log_handle.flush()
+    
     return subprocess.Popen(
         cmd,
         cwd=str(ROOT_DIR),
