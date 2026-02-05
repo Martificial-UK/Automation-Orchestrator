@@ -44,5 +44,34 @@
   },
   "monitoring": {
     "queue_depth_warn": 1000
+  },
+  "license": {
+    "enabled": true,
+    "trial_days": 7,
+    "state_path": "config/license_state.json",
+    "purchase_url": "https://example.com/buy",
+    "demo_allowlist": [
+      "/",
+      "/health",
+      "/health/detailed",
+      "/metrics",
+      "/api/docs",
+      "/api/openapi.json",
+      "/openapi.json",
+      "/redoc",
+      "/api/analytics/",
+      "/api/workflows/",
+      "/api/leads",
+      "/api/leads/",
+      "/api/campaigns",
+      "/api/campaigns/",
+      "/api/crm/status",
+      "/api/auth/me",
+      "/api/license/status",
+      "/api/license/purchase"
+    ],
+    "demo_write_allowlist": [
+      "/api/license/activate"
+    ]
   }
 }

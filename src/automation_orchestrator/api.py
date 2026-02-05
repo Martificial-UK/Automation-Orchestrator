@@ -27,6 +27,7 @@ from automation_orchestrator.auth import (
     APIKeyResponse
 )
 from automation_orchestrator.redis_queue import get_queue
+from automation_orchestrator.licensing import LicenseManager
 
 logger = logging.getLogger(__name__)
 audit = get_audit_logger()
@@ -136,6 +137,11 @@ class TenantResponse(BaseModel):
     features: Dict[str, bool]
 
 
+class LicenseActivateRequest(BaseModel):
+    """License activation request"""
+    license_key: str
+
+
 # ============================================================================
 # API Factory
 # ============================================================================
@@ -201,6 +207,13 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     if app.state.auth_enabled and JWT_SECRET == "change-me-in-production-use-strong-secret":
         logger.warning("JWT_SECRET is using the default value; set a strong secret for production")
 
+    # Licensing
+    license_cfg = config.get("license", {})
+    app.state.license_manager = LicenseManager(license_cfg)
+    if app.state.license_manager.enabled and app.state.license_manager.is_default_secret():
+        logger.warning("LICENSE_SECRET is using the default value; set a strong secret for production")
+    app.state.license_manager.ensure_trial_started()
+
     # Monitoring thresholds
     monitor_cfg = config.get("monitoring", {})
     app.state.queue_depth_warn = monitor_cfg.get("queue_depth_warn", 1000)
@@ -216,7 +229,9 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             "/openapi.json",
             "/docs",
             "/redoc",
-            "/api/auth/login"
+            "/api/auth/login",
+            "/api/license/status",
+            "/api/license/purchase"
         }
         return path in public_paths
 
@@ -262,6 +277,20 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             if not user:
                 return JSONResponse(status_code=401, content={"detail": "Authentication required"})
             request.state.user = user
+
+        if not _is_public_path(path):
+            license_status = app.state.license_manager.get_status()
+            request.state.license_status = license_status
+            if not app.state.license_manager.is_request_allowed(path, request.method, license_status):
+                return JSONResponse(
+                    status_code=402,
+                    content={
+                        "detail": "License required",
+                        "status": license_status.status,
+                        "trial_expires_at": license_status.trial_expires_at,
+                        "purchase_url": license_status.purchase_url
+                    }
+                )
 
         if app.state.rate_limit_enabled and not _is_public_path(path):
             key = user.user_id if user else (request.client.host if request.client else "unknown")
@@ -548,6 +577,28 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
         user = getattr(request.state, "user", None)
         if not user or user.role != "admin":
             raise HTTPException(status_code=403, detail="Admin access required")
+
+    # ========================================================================
+    # Licensing Endpoints
+    # ========================================================================
+
+    @app.get("/api/license/status", tags=["License"])
+    async def license_status():
+        """Get current license status."""
+        return app.state.license_manager.get_status().to_dict()
+
+    @app.get("/api/license/purchase", tags=["License"])
+    async def license_purchase():
+        """Get purchase URL for license."""
+        status = app.state.license_manager.get_status()
+        return {"purchase_url": status.purchase_url}
+
+    @app.post("/api/license/activate", tags=["License"])
+    async def license_activate(request: Request, payload: LicenseActivateRequest):
+        """Activate a license key (admin only)."""
+        if app.state.auth_enabled:
+            _require_admin(request)
+        return app.state.license_manager.activate_license(payload.license_key)
 
     def _create_audit_backup(compress: bool = True) -> Dict[str, Any]:
         audit_file = Path("logs/audit.log")

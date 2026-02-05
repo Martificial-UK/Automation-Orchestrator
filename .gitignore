@@ -10,6 +10,9 @@ reports/
 *.log
 *.log.gz
 
+# Local license state
+config/license_state.json
+
 # Secrets
 *.key
 *.pem
@@ -24,7 +27,15 @@ Thumbs.db
 pytest.ini
 .pytest_cache/
 
+# Local validation artifacts
+validate_hardening.py
+validate_hardening_quick.py
+validation_results.json
+
 # Build
 build/
 dist/
 *.egg-info/
+
+# Runtime
+run/
