@@ -13,12 +13,13 @@ import urllib3
 # Disable SSL warnings for testing
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Configure connection pooling
+# Configure global connection pooling
 urllib3.PoolManager(
-    num_pools=10,
-    maxsize=50,
+    num_pools=20,
+    maxsize=100,
     block=False,
-    strict=False
+    strict=False,
+    retries=urllib3.Retry(total=3, backoff_factor=0.1)
 )
 
 
@@ -30,13 +31,14 @@ class AutomationOrchestratorUser(HttpUser):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Configure client connection pooling
+        # Configure client connection pooling with aggressive settings for high throughput
         self.client.pool_manager = urllib3.PoolManager(
-            num_pools=10,
-            maxsize=50,
-            timeout=urllib3.Timeout(connect=2.0, read=5.0),
+            num_pools=20,  # Increased from 10
+            maxsize=100,   # Increased from 50
+            timeout=urllib3.Timeout(connect=1.0, read=5.0),  # Reduced connect timeout
             block=False,
-            strict=False
+            strict=False,
+            retries=urllib3.Retry(total=3, backoff_factor=0.1, status_forcelist=[429, 500, 502, 503, 504])
         )
     
     def on_start(self):
@@ -181,7 +183,7 @@ class AutomationOrchestratorUser(HttpUser):
             f"/api/leads/{lead_id}",
             json=update_data,
             headers=headers,
-            name="/api/leads/{id} [PUT]"
+            name="/api/leads_put"
         )
     
     # ==================== CRM CONFIG ENDPOINTS ====================

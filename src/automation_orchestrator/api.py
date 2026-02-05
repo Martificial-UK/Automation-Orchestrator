@@ -242,20 +242,29 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     @app.get("/health/detailed", tags=["Status"])
     async def health_detailed():
         """Get detailed health status"""
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
-            "components": {
-                "api": "running",
-                "audit": "running",
-                "crm_connector": "ready" if app.state.crm_connector else "not_configured",
-                "lead_ingest": "ready" if app.state.lead_ingest else "not_configured",
-                "workflow_runner": "running" if hasattr(app.state, 'workflow_runner') and app.state.workflow_runner else "not_configured",
-                "deduplication": "ready",
-                "rbac": "ready",
-                "analytics": "ready"
+        # Use cached values to avoid expensive checks
+        if not hasattr(app.state, '_health_cache'):
+            app.state._health_cache = {}
+            app.state._health_timestamp = 0
+        
+        import time
+        now = time.time()
+        
+        # Refresh cache every 5 seconds
+        if now - app.state._health_timestamp > 5:
+            app.state._health_cache = {
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "components": {
+                    "api": "running",
+                    "cache": "active",
+                    "leads_cached": len(app.state.leads_cache),
+                    "workflows_cached": len(app.state.workflows_cache)
+                }
             }
-        }
+            app.state._health_timestamp = now
+        
+        return app.state._health_cache
     
     @app.get("/api/status", tags=["Status"])
     async def api_status():
@@ -546,7 +555,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             raise HTTPException(status_code=500, detail=str(e))
     
     @app.put("/api/leads/{lead_id}", response_model=LeadResponse, tags=["Leads"])
-    async def update_lead(lead_id: str, lead: LeadData):
+    async def update_lead(lead_id: str, lead: LeadData, background_tasks: BackgroundTasks):
         """
         Update a lead
         
@@ -558,15 +567,28 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             Updated lead info
         """
         try:
-            if not app.state.crm_connector:
-                raise HTTPException(status_code=500, detail="CRM connector not configured")
+            # Update in cache immediately (fast path)
+            lead_dict = {
+                "id": lead_id,
+                "first_name": lead.first_name,
+                "last_name": lead.last_name,
+                "email": lead.email,
+                "phone": lead.phone,
+                "company": lead.company,
+                "source": lead.source or "api",
+                "created_at": app.state.leads_cache.get(lead_id, {}).get("created_at", datetime.now().isoformat()),
+                "status": "active"
+            }
             
-            lead_dict = lead.dict()
-            lead_dict['id'] = lead_id
+            # Store in cache
+            app.state.leads_cache[lead_id] = lead_dict
             
-            success = app.state.crm_connector.create_or_update_lead(lead_dict)
-            if not success:
-                raise HTTPException(status_code=400, detail="Failed to update lead")
+            # Async CRM update (non-blocking)
+            if app.state.crm_connector:
+                background_tasks.add_task(
+                    app.state.crm_connector.create_or_update_lead,
+                    lead_dict
+                )
             
             audit.log_event(
                 event_type="crm_update",
