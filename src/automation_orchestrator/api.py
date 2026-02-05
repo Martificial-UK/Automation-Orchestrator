@@ -1279,6 +1279,55 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
         return {"status": "updated", "plan": plan}
     
     # ========================================================================
+    # Workflow Builder API
+    # ========================================================================
+    
+    @app.get("/api/builder/templates", tags=["Workflows"])
+    async def get_workflow_templates():
+        """Get pre-built workflow templates"""
+        return {
+            "templates": [
+                {
+                    "id": "welcome_email",
+                    "name": "Welcome Email",
+                    "description": "Send welcome email to new leads",
+                    "steps": [
+                        {"type": "trigger", "label": "New Lead Created", "config": {"type": "new_lead"}},
+                        {"type": "action", "label": "Send Email", "config": {"type": "send_email"}}
+                    ]
+                },
+                {
+                    "id": "daily_report",
+                    "name": "Daily Report",
+                    "description": "Send daily campaign performance report",
+                    "steps": [
+                        {"type": "trigger", "label": "On Schedule", "config": {"type": "on_schedule"}},
+                        {"type": "action", "label": "Make HTTP Request", "config": {"type": "http_request"}}
+                    ]
+                },
+                {
+                    "id": "tag_leads",
+                    "name": "Tag High-Value Leads",
+                    "description": "Automatically tag leads based on attributes",
+                    "steps": [
+                        {"type": "trigger", "label": "New Lead Created", "config": {"type": "new_lead"}},
+                        {"type": "condition", "label": "If Field Equals", "config": {"type": "if_field_equals"}},
+                        {"type": "action", "label": "Add Tag", "config": {"type": "add_tag"}}
+                    ]
+                },
+                {
+                    "id": "auto_campaign",
+                    "name": "Auto Campaign",
+                    "description": "Automatically create and send campaigns",
+                    "steps": [
+                        {"type": "trigger", "label": "On Schedule", "config": {"type": "on_schedule"}},
+                        {"type": "action", "label": "Create Campaign", "config": {"type": "create_campaign"}}
+                    ]
+                }
+            ]
+        }
+    
+    # ========================================================================
     # Frontend Dashboard (React App)
     # ========================================================================
     
