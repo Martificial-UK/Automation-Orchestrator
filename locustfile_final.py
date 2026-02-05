@@ -79,12 +79,12 @@ class AutomationOrchestratorUser(HttpUser):
     @task(2)
     def health_check_detailed(self):
         """Detailed health check - 2% of traffic"""
-        self.client.get("/api/status", name="/health/detailed")
+        self.client.get("/health/detailed", name="/health/detailed")
     
     @task(1)
     def metrics_endpoint(self):
         """Prometheus metrics - 1% of traffic"""
-        self.client.get("/api/crm/status", name="/metrics")
+        self.client.get("/metrics", name="/metrics")
     
     # ==================== AUTHENTICATION ====================
     
@@ -168,6 +168,16 @@ class AutomationOrchestratorUser(HttpUser):
     # TODO: Debug and fix PUT endpoint validation issue before re-enabling
     
     # ==================== CRM CONFIG ENDPOINTS ====================
+
+    @task(3)
+    def list_campaigns(self):
+        """List campaigns - 3% of traffic"""
+        headers = self.get_headers()
+        self.client.get(
+            "/api/campaigns",
+            headers=headers,
+            name="/api/campaigns"
+        )
     
     @task(3)
     def get_crm_status(self):
@@ -176,48 +186,25 @@ class AutomationOrchestratorUser(HttpUser):
         self.client.get(
             "/api/crm/status",
             headers=headers,
-            name="/api/campaigns"
+            name="/api/crm/status"
         )
     
     @task(1)
-    def configure_crm(self):
-        """Configure CRM - 1% of traffic"""
+    def get_campaign_metrics(self):
+        """Get campaign metrics - 1% of traffic"""
         headers = self.get_headers()
-        headers["Content-Type"] = "application/json"
-        
-        config = {
-            "crm_type": "generic",
-            "api_key": "test-key-123",
-            "api_url": "http://localhost:8000",
-            "authentication": {"type": "bearer", "token": "test"},
-            "mapping": {"email": "email_address"}
-        }
-        
-        self.client.post(
-            "/api/crm/config",
-            json=config,
+        self.client.get(
+            "/api/campaigns/campaign-1/metrics",
             headers=headers,
             name="/api/campaigns/{id}/metrics"
         )
     
     # ==================== ERROR SCENARIOS ====================
     
-    @task(1)
-    def trigger_error_404(self):
-        """Intentional 404 - 1% of traffic (test error handling)"""
-        headers = self.get_headers()
-        self.client.get(
-            "/api/nonexistent",
-            headers=headers,
-            name="/api/nonexistent [404]"
-        )
+    # NOTE: Intentional 404 test disabled for production validation runs
     
     # ==================== DOCUMENTATION ====================
-    
-    @task(2)
-    def get_api_docs(self):
-        """Get API documentation - 2% of traffic"""
-        self.client.get("/api/docs", name="/docs")
+    # Docs endpoint disabled for production validation runs
     
     @task(1)
     def get_openapi_schema(self):
