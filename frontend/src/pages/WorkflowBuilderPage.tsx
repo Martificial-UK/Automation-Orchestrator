@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout';
 import { workflowsAPI } from '@/services/api';
-import { Plus, X, ArrowRight, Trash2, Save } from 'lucide-react';
+import { Plus, ArrowRight, Trash2, Save } from 'lucide-react';
 
 interface WorkflowStep {
   id: string;
@@ -24,12 +24,6 @@ const ACTIONS = [
   { value: 'http_request', label: 'Make HTTP Request' },
   { value: 'create_task', label: 'Create Task' },
   { value: 'send_slack', label: 'Send Slack Message' },
-];
-
-const CONDITIONS = [
-  { value: 'if_field_equals', label: 'If Field Equals' },
-  { value: 'if_field_contains', label: 'If Field Contains' },
-  { value: 'if_date_passed', label: 'If Date Passed' },
 ];
 
 export const WorkflowBuilderPage: React.FC = () => {

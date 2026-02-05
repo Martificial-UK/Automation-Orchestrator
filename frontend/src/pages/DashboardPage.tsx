@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/Layout';
 import { systemAPI, leadsAPI, campaignsAPI, Metrics, Lead, Campaign } from '@/services/api';
-import { TrendingUp, Users, Megaphone, Workflow, Activity } from 'lucide-react';
+import { Users, Megaphone, Workflow, Activity } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
