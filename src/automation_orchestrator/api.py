@@ -3,7 +3,7 @@ REST API for Automation Orchestrator
 Provides endpoints for workflow control, lead management, and CRM integration
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Depends, Header
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Depends, Header, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ConfigDict
@@ -12,16 +12,21 @@ from datetime import datetime
 import logging
 import uuid
 from pathlib import Path
+import time
+from collections import defaultdict, deque
+import shutil
+import gzip
 from automation_orchestrator.audit import get_audit_logger
 from automation_orchestrator.deduplication import DeduplicationEngine
 from automation_orchestrator.rbac import RBACManager, Role, Permission, User
 from automation_orchestrator.analytics import Analytics
 from automation_orchestrator.multi_tenancy import TenantManager, TenantContext
 from automation_orchestrator.auth import (
-    JWTHandler, PasswordHasher, APIKeyManager, UserStore,
+    JWTHandler, PasswordHasher, APIKeyManager, UserStore, JWT_SECRET,
     global_user_store, LoginRequest, LoginResponse, APIKeyCreateRequest,
     APIKeyResponse
 )
+from automation_orchestrator.redis_queue import get_queue
 
 logger = logging.getLogger(__name__)
 audit = get_audit_logger()
@@ -170,6 +175,115 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     app.state.rbac = RBACManager()
     app.state.analytics = Analytics()
     app.state.tenants = TenantManager()
+
+    # Redis queue (required in production when enabled)
+    app.state.redis_queue = get_queue(config.get("redis", {}))
+
+    # Runtime metrics
+    app.state.start_time = time.time()
+    app.state.metrics = {
+        "requests_total": 0,
+        "requests_failed": 0,
+        "latency_total_ms": 0.0,
+        "latency_max_ms": 0.0
+    }
+
+    # Rate limiting
+    rate_limit_cfg = config.get("rate_limit", {})
+    app.state.rate_limit_enabled = rate_limit_cfg.get("enabled", False)
+    app.state.rate_limit_window = rate_limit_cfg.get("window_seconds", 60)
+    app.state.rate_limit_max = rate_limit_cfg.get("max_requests", 120)
+    app.state.rate_limit_buckets = defaultdict(deque)
+
+    # Auth
+    auth_cfg = config.get("auth", {})
+    app.state.auth_enabled = auth_cfg.get("enabled", False)
+    if app.state.auth_enabled and JWT_SECRET == "change-me-in-production-use-strong-secret":
+        logger.warning("JWT_SECRET is using the default value; set a strong secret for production")
+
+    # Monitoring thresholds
+    monitor_cfg = config.get("monitoring", {})
+    app.state.queue_depth_warn = monitor_cfg.get("queue_depth_warn", 1000)
+
+    def _is_public_path(path: str) -> bool:
+        public_paths = {
+            "/health",
+            "/health/detailed",
+            "/metrics",
+            "/api/status",
+            "/api/docs",
+            "/api/openapi.json",
+            "/openapi.json",
+            "/docs",
+            "/redoc",
+            "/api/auth/login"
+        }
+        return path in public_paths
+
+    def _authenticate_request(request: Request) -> Optional[User]:
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "")
+            payload = JWTHandler.verify_token(token)
+            if payload:
+                user = global_user_store.get_user_by_id(payload.get("user_id"))
+                if user:
+                    return user
+
+        api_key = request.headers.get("x-api-key")
+        if api_key:
+            return global_user_store.verify_api_key(api_key)
+
+        return None
+
+    def _check_rate_limit(key: str) -> bool:
+        now = time.time()
+        bucket = app.state.rate_limit_buckets[key]
+        window = app.state.rate_limit_window
+        max_requests = app.state.rate_limit_max
+
+        while bucket and bucket[0] < now - window:
+            bucket.popleft()
+
+        if len(bucket) >= max_requests:
+            return False
+
+        bucket.append(now)
+        return True
+
+    @app.middleware("http")
+    async def auth_rate_limit_metrics_middleware(request: Request, call_next):
+        start = time.time()
+        path = request.url.path
+        user = None
+
+        if app.state.auth_enabled and not _is_public_path(path):
+            user = _authenticate_request(request)
+            if not user:
+                return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+            request.state.user = user
+
+        if app.state.rate_limit_enabled and not _is_public_path(path):
+            key = user.user_id if user else (request.client.host if request.client else "unknown")
+            if not _check_rate_limit(key):
+                return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            app.state.metrics["requests_failed"] += 1
+            raise
+        finally:
+            duration_ms = (time.time() - start) * 1000.0
+            app.state.metrics["requests_total"] += 1
+            app.state.metrics["latency_total_ms"] += duration_ms
+            if duration_ms > app.state.metrics["latency_max_ms"]:
+                app.state.metrics["latency_max_ms"] = duration_ms
+
+        if response.status_code >= 400:
+            app.state.metrics["requests_failed"] += 1
+
+        return response
     
     # Initialize in-memory lead store for testing/caching
     app.state.leads_cache = {}
@@ -226,6 +340,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     @app.get("/health", response_model=HealthResponse, tags=["Status"])
     async def health_check():
         """Check system health and status"""
+        redis_ready = app.state.redis_queue.ping() if app.state.redis_queue else False
         return HealthResponse(
             status="healthy",
             version="1.0.0",
@@ -233,6 +348,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             components={
                 "api": "running",
                 "audit": "running",
+                "redis": "ready" if redis_ready else "unavailable",
                 "crm_connector": "ready" if app.state.crm_connector else "not_configured",
                 "lead_ingest": "ready" if app.state.lead_ingest else "not_configured",
                 "workflow_runner": "running" if hasattr(app.state, 'workflow_runner') and app.state.workflow_runner else "not_configured"
@@ -252,12 +368,16 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
         
         # Refresh cache every 5 seconds
         if now - app.state._health_timestamp > 5:
+            redis_ok = app.state.redis_queue.ping() if app.state.redis_queue else False
+            queue_depth = app.state.redis_queue.get_queue_depth("default") if app.state.redis_queue else 0
             app.state._health_cache = {
                 "status": "healthy",
                 "timestamp": datetime.now().isoformat(),
                 "components": {
                     "api": "running",
                     "cache": "active",
+                    "redis": "ready" if redis_ok else "unavailable",
+                    "queue_depth": queue_depth,
                     "leads_cached": len(app.state.leads_cache),
                     "workflows_cached": len(app.state.workflows_cache)
                 }
@@ -284,14 +404,31 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     @app.get("/metrics", tags=["Status"])
     async def metrics_endpoint():
         """Get system metrics"""
+        total = app.state.metrics.get("requests_total", 0)
+        failed = app.state.metrics.get("requests_failed", 0)
+        latency_total = app.state.metrics.get("latency_total_ms", 0.0)
+        latency_max = app.state.metrics.get("latency_max_ms", 0.0)
+        avg_latency = (latency_total / total) if total else 0.0
+        uptime = time.time() - app.state.start_time
+
+        queue_depth = app.state.redis_queue.get_queue_depth("default") if app.state.redis_queue else 0
+        if queue_depth >= app.state.queue_depth_warn:
+            logger.warning(f"Queue depth high: {queue_depth}")
+
         return {
             "timestamp": datetime.now().isoformat(),
             "metrics": {
-                "requests_total": "N/A",
-                "requests_failed": "N/A",
-                "leads_processed": "N/A",
-                "workflows_executed": "N/A",
-                "uptime_seconds": "N/A"
+                "requests_total": total,
+                "requests_failed": failed,
+                "avg_latency_ms": round(avg_latency, 2),
+                "max_latency_ms": round(latency_max, 2),
+                "uptime_seconds": int(uptime),
+                "queue_depth": queue_depth
+            },
+            "rate_limit": {
+                "enabled": app.state.rate_limit_enabled,
+                "window_seconds": app.state.rate_limit_window,
+                "max_requests": app.state.rate_limit_max
             }
         }
     
@@ -402,6 +539,68 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             return {"message": "API key revoked"}
         
         raise HTTPException(status_code=404, detail="API key not found")
+
+    # ========================================================================
+    # Admin & Maintenance Endpoints
+    # ========================================================================
+
+    def _require_admin(request: Request) -> None:
+        user = getattr(request.state, "user", None)
+        if not user or user.role != "admin":
+            raise HTTPException(status_code=403, detail="Admin access required")
+
+    def _create_audit_backup(compress: bool = True) -> Dict[str, Any]:
+        audit_file = Path("logs/audit.log")
+        backups_dir = Path("backups/audit")
+        backups_dir.mkdir(parents=True, exist_ok=True)
+
+        if not audit_file.exists():
+            raise HTTPException(status_code=404, detail="Audit log not found")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"audit_backup_{timestamp}.log"
+        if compress:
+            backup_name += ".gz"
+
+        backup_path = backups_dir / backup_name
+
+        if compress:
+            with open(audit_file, "rb") as f_in:
+                with gzip.open(backup_path, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+        else:
+            shutil.copy2(audit_file, backup_path)
+
+        size_bytes = backup_path.stat().st_size
+        return {
+            "backup_file": str(backup_path),
+            "size_bytes": size_bytes,
+            "compressed": compress,
+            "created_at": datetime.now().isoformat()
+        }
+
+    @app.post("/api/admin/audit/backup", tags=["Admin"])
+    async def create_audit_backup(request: Request, compress: bool = True):
+        """Create a backup of the audit log (admin only)."""
+        _require_admin(request)
+        return _create_audit_backup(compress=compress)
+
+    @app.get("/api/admin/audit/backups", tags=["Admin"])
+    async def list_audit_backups(request: Request):
+        """List audit log backups (admin only)."""
+        _require_admin(request)
+        backups_dir = Path("backups/audit")
+        backups = []
+        if backups_dir.exists():
+            for backup_file in sorted(backups_dir.glob("audit_backup_*.log*")):
+                if backup_file.suffix == ".meta":
+                    continue
+                backups.append({
+                    "backup_file": str(backup_file),
+                    "size_bytes": backup_file.stat().st_size,
+                    "created_at": datetime.fromtimestamp(backup_file.stat().st_mtime).isoformat()
+                })
+        return {"backups": backups}
     
     # ========================================================================
     # Lead Endpoints
@@ -1059,5 +1258,25 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
                 "timestamp": datetime.now().isoformat()
             }
         )
+
+    # ========================================================================
+    # Lifecycle Hooks
+    # ========================================================================
+
+    @app.on_event("startup")
+    async def startup_checks():
+        """Run startup checks for production readiness."""
+        if config.get("redis", {}).get("required", False):
+            if not app.state.redis_queue or not app.state.redis_queue.ping():
+                raise RuntimeError("Redis is required but not available")
+
+    @app.on_event("shutdown")
+    async def shutdown_cleanup():
+        """Release resources on shutdown."""
+        if app.state.redis_queue and app.state.redis_queue.client:
+            try:
+                app.state.redis_queue.client.close()
+            except Exception:
+                pass
     
     return app

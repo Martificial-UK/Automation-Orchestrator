@@ -8,3 +8,4 @@ pytest-asyncio>=0.21.0
 httpx>=0.24.0
 PyJWT>=2.8.0
 python-multipart>=0.0.6
+redis>=5.0.0

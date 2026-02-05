@@ -24,5 +24,25 @@
   "deduplication": {
     "strategy": "email",
     "threshold": 0.95
+  },
+  "auth": {
+    "enabled": true
+  },
+  "rate_limit": {
+    "enabled": true,
+    "window_seconds": 60,
+    "max_requests": 120
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "queue_prefix": "ao:tasks",
+    "use_fake_redis": false,
+    "allow_fallback": true,
+    "required": false
+  },
+  "monitoring": {
+    "queue_depth_warn": 1000
   }
 }

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import redis
 from enum import Enum
 
-# Try to use fake redis for Windows compatibility
+# Optional fake redis for local development/testing
 try:
     import fakeredis
     HAS_FAKEREDIS = True
@@ -18,7 +18,6 @@ except ImportError:
     HAS_FAKEREDIS = False
 
 logger = logging.getLogger(__name__)
-USE_FAKE_REDIS = True  # Set to True to use fakeredis (in-memory) instead of real Redis
 
 
 class TaskStatus(Enum):
@@ -40,11 +39,14 @@ class RedisQueue:
     - TTL for completed tasks
     """
     
-    def __init__(self, 
+    def __init__(self,
                  redis_host: str = "localhost",
                  redis_port: int = 6379,
                  redis_db: int = 0,
-                 queue_prefix: str = "ao:tasks"):
+                 queue_prefix: str = "ao:tasks",
+                 use_fake_redis: bool = False,
+                 allow_fallback: bool = True,
+                 required: bool = False):
         """
         Initialize Redis queue
         
@@ -58,10 +60,15 @@ class RedisQueue:
         self.redis_port = redis_port
         self.redis_db = redis_db
         self.queue_prefix = queue_prefix
-        
+
         try:
-            # Try real Redis first
-            if not USE_FAKE_REDIS:
+            if use_fake_redis:
+                if not HAS_FAKEREDIS:
+                    raise RuntimeError("fakeredis not installed")
+                self.client = fakeredis.FakeStrictRedis(decode_responses=True)
+                self.client.ping()
+                logger.info("Connected to fakeredis (in-memory queue)")
+            else:
                 self.client = redis.Redis(
                     host=redis_host,
                     port=redis_port,
@@ -73,19 +80,18 @@ class RedisQueue:
                 )
                 self.client.ping()
                 logger.info(f"Connected to Redis at {redis_host}:{redis_port}")
-            else:
-                raise Exception("Using fakeredis for testing")
         except Exception as e:
-            # Fall back to fakeredis
-            if HAS_FAKEREDIS:
-                logger.info("Using fakeredis (in-memory) for testing/Windows compatibility")
+            if required:
+                raise RuntimeError(f"Redis connection required but failed: {e}")
+            if allow_fallback and HAS_FAKEREDIS:
+                logger.warning(f"Redis unavailable, using fakeredis fallback: {e}")
                 self.client = fakeredis.FakeStrictRedis(decode_responses=True)
                 self.client.ping()
-                logger.info("Connected to fakeredis (in-memory queue)")
-            else:
-                logger.warning(f"Failed to connect to Redis: {e}")
-                logger.warning("Falling back to in-memory task queue")
+            elif allow_fallback:
+                logger.warning(f"Redis unavailable, falling back to in-memory queue: {e}")
                 self.client = None
+            else:
+                raise RuntimeError(f"Redis connection failed: {e}")
     
     def _get_queue_key(self, queue_name: str) -> str:
         """Get full queue key"""
@@ -94,6 +100,24 @@ class RedisQueue:
     def _get_task_key(self, task_id: str) -> str:
         """Get full task metadata key"""
         return f"{self.queue_prefix}:task:{task_id}"
+
+    def ping(self) -> bool:
+        """Check Redis connectivity."""
+        if not self.client:
+            return False
+        try:
+            return bool(self.client.ping())
+        except Exception:
+            return False
+
+    def get_queue_depth(self, queue_name: str = "default") -> int:
+        """Return the current queue length."""
+        if not self.client:
+            return 0
+        try:
+            return int(self.client.llen(self._get_queue_key(queue_name)))
+        except Exception:
+            return 0
     
     def enqueue(self,
                 task_type: str,
@@ -331,7 +355,11 @@ def get_queue(redis_config: Optional[Dict[str, Any]] = None) -> RedisQueue:
         _queue_instance = RedisQueue(
             redis_host=redis_config.get("host", "localhost"),
             redis_port=redis_config.get("port", 6379),
-            redis_db=redis_config.get("db", 0)
+            redis_db=redis_config.get("db", 0),
+            queue_prefix=redis_config.get("queue_prefix", "ao:tasks"),
+            use_fake_redis=redis_config.get("use_fake_redis", False),
+            allow_fallback=redis_config.get("allow_fallback", True),
+            required=redis_config.get("required", False)
         )
     
     return _queue_instance
