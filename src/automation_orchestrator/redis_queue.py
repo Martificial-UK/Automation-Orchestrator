@@ -10,7 +10,15 @@ from datetime import datetime, timedelta
 import redis
 from enum import Enum
 
+# Try to use fake redis for Windows compatibility
+try:
+    import fakeredis
+    HAS_FAKEREDIS = True
+except ImportError:
+    HAS_FAKEREDIS = False
+
 logger = logging.getLogger(__name__)
+USE_FAKE_REDIS = True  # Set to True to use fakeredis (in-memory) instead of real Redis
 
 
 class TaskStatus(Enum):
@@ -52,22 +60,32 @@ class RedisQueue:
         self.queue_prefix = queue_prefix
         
         try:
-            self.client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=redis_db,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_keepalive=True,
-                health_check_interval=30
-            )
-            # Test connection
-            self.client.ping()
-            logger.info(f"Connected to Redis at {redis_host}:{redis_port}")
+            # Try real Redis first
+            if not USE_FAKE_REDIS:
+                self.client = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=redis_db,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_keepalive=True,
+                    health_check_interval=30
+                )
+                self.client.ping()
+                logger.info(f"Connected to Redis at {redis_host}:{redis_port}")
+            else:
+                raise Exception("Using fakeredis for testing")
         except Exception as e:
-            logger.warning(f"Failed to connect to Redis: {e}")
-            logger.warning("Falling back to in-memory task queue")
-            self.client = None
+            # Fall back to fakeredis
+            if HAS_FAKEREDIS:
+                logger.info("Using fakeredis (in-memory) for testing/Windows compatibility")
+                self.client = fakeredis.FakeStrictRedis(decode_responses=True)
+                self.client.ping()
+                logger.info("Connected to fakeredis (in-memory queue)")
+            else:
+                logger.warning(f"Failed to connect to Redis: {e}")
+                logger.warning("Falling back to in-memory task queue")
+                self.client = None
     
     def _get_queue_key(self, queue_name: str) -> str:
         """Get full queue key"""

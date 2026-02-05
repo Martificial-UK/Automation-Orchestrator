@@ -123,7 +123,9 @@ async def update_lead_debug(lead_id: str, lead: LeadDataDebug, background_tasks:
                 data=response_data
             )
             print(f"[PUT] Response object created successfully")
-            print(f"[PUT] Response: {response.model_dump_json(default=str)}")
+            # Fixed: Use json.dumps() instead of model_dump_json(default=str) for Pydantic v2 compatibility
+            response_json = json.dumps(response.model_dump(), default=str)
+            print(f"[PUT] Response: {response_json}")
             
             return response
         except ValidationError as e:

@@ -13,7 +13,7 @@ from datetime import datetime
 import time
 
 from src.automation_orchestrator.redis_queue import get_queue, TaskStatus
-from src.automation_orchestrator.config import load_config
+from src.automation_orchestrator.wsgi import load_config
 from src.automation_orchestrator.crm import GenericAPIConnector
 from src.automation_orchestrator.email_followup import EmailFollowup
 from src.automation_orchestrator.lead_ingest import LeadIngest
