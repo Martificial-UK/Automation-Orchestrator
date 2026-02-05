@@ -18,10 +18,18 @@ if (!(Test-Path ".venv")) {
 
 $venvPython = Join-Path $root ".venv\Scripts\python.exe"
 
-if (Test-Path "vendor\wheels") {
+$wheelsDir = Join-Path $root "vendor\wheels"
+$hasWheels = $false
+if (Test-Path $wheelsDir) {
+    $wheelFiles = Get-ChildItem -Path $wheelsDir -Filter "*.whl" -ErrorAction SilentlyContinue
+    $hasWheels = ($wheelFiles.Count -gt 0)
+}
+
+if ($hasWheels) {
+    Write-Host "Installing from offline wheels..." -ForegroundColor Green
     & $venvPython -m pip install --no-index --find-links vendor\wheels -r requirements.txt
 } else {
-    Write-Host "Offline wheel bundle not found. Install requires internet access." -ForegroundColor Yellow
+    Write-Host "Installing from PyPI (requires internet)..." -ForegroundColor Yellow
     & $venvPython -m pip install -r requirements.txt
 }
 
