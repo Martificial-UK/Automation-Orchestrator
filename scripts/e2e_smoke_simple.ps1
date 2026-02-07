@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+$script:LauncherProc = $null
 
 function Write-Banner {
     param([string]$Text)
@@ -27,6 +28,21 @@ function Wait-Health {
         Start-Sleep -Seconds $DelaySeconds
     }
     return $false
+}
+
+function Stop-Launcher {
+    if ($script:LauncherProc -and -not $script:LauncherProc.HasExited) {
+        try {
+            Stop-Process -Id $script:LauncherProc.Id -Force -ErrorAction SilentlyContinue
+        } catch {
+        }
+    }
+    $script:LauncherProc = $null
+}
+
+function Cleanup-Services {
+    python installer\stop_services.py | Out-Null
+    Stop-Launcher
 }
 
 function Invoke-Json {
@@ -58,12 +74,14 @@ function Invoke-Json {
 
 Write-Banner "E2E Smoke Test - Automation Orchestrator"
 
+try {
+
 Write-Host "Stopping any existing services..." -ForegroundColor Yellow
 python installer\stop_services.py | Out-Null
 Start-Sleep -Seconds 2
 
 Write-Host "Starting services via launcher..." -ForegroundColor Yellow
-$launcherProc = Start-Process -FilePath "python" -ArgumentList @(
+$script:LauncherProc = Start-Process -FilePath "python" -ArgumentList @(
     "installer\launch_services.py",
     $ConfigPath
 ) -WorkingDirectory $root -PassThru -WindowStyle Hidden
@@ -78,12 +96,13 @@ for ($i = 0; $i -lt $maxWait; $i++) {
 
 if (-not (Test-Path "run\services.json")) {
     Write-Host "ERROR: Launcher did not create services.json" -ForegroundColor Red
+    Cleanup-Services
     exit 1
 }
 
 if (-not (Wait-Health)) {
     Write-Host "ERROR: API did not become healthy" -ForegroundColor Red
-    python installer\stop_services.py | Out-Null
+    Cleanup-Services
     exit 1
 }
 
@@ -130,11 +149,11 @@ Write-Banner "Health & Metrics"
 $health = Invoke-Json -Method GET -Url http://localhost:8000/health/detailed -Headers $headers
 Write-Host "+ Detailed health check passed" -ForegroundColor Green
 
-$metrics = Invoke-WebRequest -Uri http://localhost:8000/metrics -UseBasicParsing
+$metrics = Invoke-WebRequest -Uri http://localhost:8000/metrics -UseBasicParsing -TimeoutSec 10
 Write-Host "+ Metrics endpoint working" -ForegroundColor Green
 
 Write-Banner "Cleanup"
-python installer\stop_services.py | Out-Null
+Cleanup-Services
 Write-Host "+ Services stopped" -ForegroundColor Green
 
 Write-Banner "E2E Smoke Test Complete"
@@ -151,3 +170,9 @@ Write-Host "  - Analytics endpoints" -ForegroundColor White
 Write-Host "  - License activation" -ForegroundColor White
 Write-Host "  - Health & metrics endpoints" -ForegroundColor White
 Write-Host "  - Service shutdown" -ForegroundColor White
+
+} catch {
+    Write-Host ("ERROR: E2E smoke test failed: {0}" -f $_.Exception.Message) -ForegroundColor Red
+    Cleanup-Services
+    exit 1
+}
