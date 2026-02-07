@@ -85,23 +85,33 @@ $script:LauncherProc = Start-Process -FilePath "python" -ArgumentList @(
     "installer\launch_services.py",
     $ConfigPath
 ) -WorkingDirectory $root -PassThru -WindowStyle Hidden
+Write-Host ("Launcher PID: {0}" -f $script:LauncherProc.Id) -ForegroundColor Gray
 
 $maxWait = 30
 for ($i = 0; $i -lt $maxWait; $i++) {
     if (Test-Path "run\services.json") {
         break
     }
+    if (($i + 1) % 5 -eq 0) {
+        Write-Host ("Waiting for services.json... {0}/{1}s" -f (($i + 1)), $maxWait) -ForegroundColor Gray
+    }
     Start-Sleep -Seconds 1
 }
 
 if (-not (Test-Path "run\services.json")) {
     Write-Host "ERROR: Launcher did not create services.json" -ForegroundColor Red
+    if (Test-Path "logs\launcher.log") { Get-Content "logs\launcher.log" -Tail 200 | Write-Host }
+    if (Test-Path "logs\api.log") { Get-Content "logs\api.log" -Tail 200 | Write-Host }
+    if (Test-Path "logs\worker.log") { Get-Content "logs\worker.log" -Tail 200 | Write-Host }
     Cleanup-Services
     exit 1
 }
 
 if (-not (Wait-Health)) {
     Write-Host "ERROR: API did not become healthy" -ForegroundColor Red
+    if (Test-Path "logs\launcher.log") { Get-Content "logs\launcher.log" -Tail 200 | Write-Host }
+    if (Test-Path "logs\api.log") { Get-Content "logs\api.log" -Tail 200 | Write-Host }
+    if (Test-Path "logs\worker.log") { Get-Content "logs\worker.log" -Tail 200 | Write-Host }
     Cleanup-Services
     exit 1
 }

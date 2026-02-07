@@ -86,6 +86,12 @@ def main() -> int:
             encoding="utf-8"
         )
 
+    workers_env = os.getenv("AO_UVICORN_WORKERS")
+    if workers_env:
+        workers = max(1, int(workers_env))
+    else:
+        workers = 1 if os.getenv("CI") else 4
+
     processes["api"] = _start_process(
         [
             sys.executable,
@@ -97,7 +103,7 @@ def main() -> int:
             "--port",
             "8000",
             "--workers",
-            "4"
+            str(workers)
         ],
         "api.log",
         env
