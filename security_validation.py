@@ -19,10 +19,10 @@ def test_security_imports():
             WebhookValidator, SecretManager, PIIManager,
             OutputSanitizer, RateLimiter, SecurityEventLogger
         )
-        print("✓ All security modules imported successfully")
+        print("OK: All security modules imported successfully")
         return True
     except Exception as e:
-        print(f"✗ Failed to import security modules: {e}")
+        print(f"ERROR: Failed to import security modules: {e}")
         return False
 
 
@@ -39,15 +39,15 @@ def test_input_validation():
         # Invalid lead ID - should raise
         try:
             InputValidator.validate_lead_id("<script>alert(1)</script>")
-            print("✗ XSS injection not blocked!")
+            print("ERROR: XSS injection not blocked!")
             return False
         except ValueError:
             pass  # Expected
         
-        print("✓ Input validation working correctly")
+        print("OK: Input validation working correctly")
         return True
     except Exception as e:
-        print(f"✗ Input validation test failed: {e}")
+        print(f"ERROR: Input validation test failed: {e}")
         return False
 
 
@@ -64,7 +64,7 @@ def test_email_validation():
         # SMTP injection attempt
         try:
             EmailValidator.validate_email("test@example.com\nBcc: attacker@evil.com")
-            print("✗ SMTP injection not blocked!")
+            print("ERROR: SMTP injection not blocked!")
             return False
         except ValueError:
             pass  # Expected
@@ -73,10 +73,10 @@ def test_email_validation():
         subject = EmailValidator.sanitize_header("Test\nSubject")
         assert "\n" not in subject, "CRLF not removed from header"
         
-        print("✓ Email validation working correctly")
+        print("OK: Email validation working correctly")
         return True
     except Exception as e:
-        print(f"✗ Email validation test failed: {e}")
+        print(f"ERROR: Email validation test failed: {e}")
         return False
 
 
@@ -89,15 +89,15 @@ def test_path_validation():
         # Path traversal attempt should be blocked
         try:
             PathValidator.validate_path("../../etc/passwd")
-            print("✗ Path traversal not blocked!")
+            print("ERROR: Path traversal not blocked!")
             return False
         except ValueError:
             pass  # Expected
         
-        print("✓ Path validation working correctly")
+        print("OK: Path validation working correctly")
         return True
     except Exception as e:
-        print(f"✗ Path validation test failed: {e}")
+        print(f"ERROR: Path validation test failed: {e}")
         return False
 
 
@@ -110,7 +110,7 @@ def test_webhook_validation():
         # Localhost should be blocked
         try:
             WebhookValidator.validate_webhook_url("http://localhost:8000/webhook")
-            print("✗ Localhost not blocked!")
+            print("ERROR: Localhost not blocked!")
             return False
         except ValueError:
             pass  # Expected
@@ -118,7 +118,7 @@ def test_webhook_validation():
         # Private IP should be blocked
         try:
             WebhookValidator.validate_webhook_url("http://192.168.1.1/webhook")
-            print("✗ Private IP not blocked!")
+            print("ERROR: Private IP not blocked!")
             return False
         except ValueError:
             pass  # Expected
@@ -126,15 +126,15 @@ def test_webhook_validation():
         # AWS metadata should be blocked
         try:
             WebhookValidator.validate_webhook_url("http://169.254.169.254/latest/meta-data/")
-            print("✗ AWS metadata not blocked!")
+            print("ERROR: AWS metadata not blocked!")
             return False
         except ValueError:
             pass  # Expected
         
-        print("✓ Webhook validation working correctly (SSRF protected)")
+        print("OK: Webhook validation working correctly (SSRF protected)")
         return True
     except Exception as e:
-        print(f"✗ Webhook validation test failed: {e}")
+        print(f"ERROR: Webhook validation test failed: {e}")
         return False
 
 
@@ -152,10 +152,10 @@ def test_pii_anonymization():
         anon_phone = PIIManager.anonymize_phone("555-123-4567")
         assert "****" in anon_phone, "Phone not anonymized"
         
-        print("✓ PII anonymization working correctly")
+        print("OK: PII anonymization working correctly")
         return True
     except Exception as e:
-        print(f"✗ PII anonymization test failed: {e}")
+        print(f"ERROR: PII anonymization test failed: {e}")
         return False
 
 
@@ -177,9 +177,9 @@ def test_audit_logging():
                 sequence_step=1,
                 workflow="test"
             )
-            print("✓ Valid email logging works")
+            print("OK: Valid email logging works")
         except Exception as e:
-            print(f"✗ Valid email logging failed: {e}")
+            print(f"ERROR: Valid email logging failed: {e}")
             return False
         
         # Invalid email should be rejected
@@ -191,14 +191,14 @@ def test_audit_logging():
                 sequence_step=1,
                 workflow="test"
             )
-            print("✗ Invalid email was accepted!")
+            print("ERROR: Invalid email was accepted!")
             return False
         except ValueError:
-            print("✓ Invalid email was rejected")
+            print("OK: Invalid email was rejected")
         
         return True
     except Exception as e:
-        print(f"✗ Audit logging test failed: {e}")
+        print(f"ERROR: Audit logging test failed: {e}")
         return False
 
 
@@ -213,18 +213,18 @@ def test_rate_limiting():
         # Should allow up to max_requests
         for i in range(5):
             if not limiter.is_allowed("test_user"):
-                print(f"✗ Rate limiting failed at request {i+1}")
+                print(f"ERROR: Rate limiting failed at request {i+1}")
                 return False
         
         # Should block beyond max_requests
         if limiter.is_allowed("test_user"):
-            print("✗ Rate limiting not enforcing limit")
+            print("ERROR: Rate limiting not enforcing limit")
             return False
         
-        print("✓ Rate limiting working correctly")
+        print("OK: Rate limiting working correctly")
         return True
     except Exception as e:
-        print(f"✗ Rate limiting test failed: {e}")
+        print(f"ERROR: Rate limiting test failed: {e}")
         return False
 
 
@@ -260,15 +260,15 @@ def test_environment_security():
                             found_issues.append(f"{py_file.name}:{line_num}: {line.strip()}")
         
         if found_issues:
-            print("✗ Found potential hardcoded secrets:")
+            print("ERROR: Found potential hardcoded secrets:")
             for issue in found_issues:
                 print(f"  - {issue}")
             return False
         
-        print("✓ No obvious hardcoded secrets found")
+        print("OK: No obvious hardcoded secrets found")
         return True
     except Exception as e:
-        print(f"✗ Secret scan failed: {e}")
+        print(f"ERROR: Secret scan failed: {e}")
         return False
 
 
@@ -282,7 +282,7 @@ def print_report(results):
     total = len(results)
     
     for test_name, result in results.items():
-        status = "✓ PASS" if result else "✗ FAIL"
+        status = "OK: PASS" if result else "ERROR: FAIL"
         print(f"{status}: {test_name}")
     
     print("="*60)
@@ -290,10 +290,10 @@ def print_report(results):
     print("="*60)
     
     if passed == total:
-        print("\n✓ All security tests passed!")
+        print("\nOK: All security tests passed!")
         return 0
     else:
-        print(f"\n✗ {total - passed} security test(s) failed")
+        print(f"\nERROR: {total - passed} security test(s) failed")
         return 1
 
 
