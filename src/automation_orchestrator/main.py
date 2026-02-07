@@ -81,6 +81,10 @@ def run_cli(config: dict) -> None:
         
         print("✓ Automation Orchestrator running in CLI mode")
         print("  Press Ctrl+C to stop...")
+
+        if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("AO_DISABLE_WORKFLOW_RUNNER") == "1":
+            print("✓ Automation Orchestrator CLI initialized in test/disabled mode")
+            return
         
         # Keep running
         import time
