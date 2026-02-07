@@ -814,7 +814,7 @@ class AuditLogger:
             details = self.anonymize_data(details)
         
         event = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "event_type": event_type,
             "actor": actor,
             "lead_id": lead_id,
