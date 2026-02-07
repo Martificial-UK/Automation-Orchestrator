@@ -72,6 +72,7 @@ class TestLeadEndpoints:
     def test_ingest_lead(self, client, sample_lead, mock_audit_logger):
         """Test lead ingestion"""
         response = client.post("/api/leads", json=sample_lead)
+        print(f"/api/leads response: status={response.status_code} body={response.text}")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ["success", "queued"]
