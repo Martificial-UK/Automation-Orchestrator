@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.venv/
 
 # Logs and reports
 logs/
@@ -12,6 +13,7 @@ reports/
 
 # Local license state
 config/license_state.json
+config/app_config.json
 
 # Secrets
 *.key
