@@ -5,6 +5,8 @@ on:
   push:
   pull_request:
 
+permissions: read-all
+
 concurrency:
   group: ao-validation-${{ github.ref }}
   cancel-in-progress: true
@@ -60,4 +62,5 @@ jobs:
         if: always()
         with:
           name: ao-validation-logs
+          retention-days: 7
           path: ci-logs
