@@ -16,6 +16,12 @@ Release details:
 - [x] Confirm customer data migration plan (if applicable)
 
 ## 2) Security & Compliance
+Status notes:
+- Secrets storage: Not decided yet
+- `JWT_SECRET` / `LICENSE_SECRET`: Not set to non-default values yet
+- TLS certificates: Not set yet
+- Audit logging & PII handling: Not verified yet
+
 - [ ] Secrets are stored in a manager (not in repo or .env)
 - [ ] `JWT_SECRET` and `LICENSE_SECRET` are non-default
 - [ ] TLS certificates are valid and rotated
