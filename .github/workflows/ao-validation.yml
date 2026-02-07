@@ -46,6 +46,7 @@ jobs:
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ao-validation-logs
           path: ci-logs
