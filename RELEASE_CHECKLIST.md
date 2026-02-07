@@ -81,6 +81,11 @@ Status notes:
 - [ ] Confirm license status and activation
 
 ## 7) Rollback Plan
+Status notes:
+- Previous stable version/image: Not identified yet
+- Rollback steps: Not documented yet
+- Rollback test: Not performed yet
+
 - [ ] Identify previous stable version and image tag
 - [ ] Confirm rollback steps documented and accessible
 - [ ] Test rollback on staging (if available)
