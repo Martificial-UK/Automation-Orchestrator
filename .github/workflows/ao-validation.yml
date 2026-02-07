@@ -8,6 +8,9 @@ on:
 jobs:
   validation:
     runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUNBUFFERED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +31,7 @@ jobs:
         run: |
           $logDir = "ci-logs"
           New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-          python -m pytest tests/ -v 2>&1 | Tee-Object -FilePath "$logDir\api-tests.log"
+          python -m pytest tests/ -vv -rA --maxfail=1 --durations=25 -s --junitxml "$logDir\pytest-results.xml" 2>&1 | Tee-Object -FilePath "$logDir\api-tests.log"
 
       - name: Run security validation
         shell: pwsh
