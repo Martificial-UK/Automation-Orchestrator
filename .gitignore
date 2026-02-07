@@ -20,6 +20,7 @@ config/app_config.json
 *.pem
 *.env
 logs/.audit_secret
+config/.security_key
 
 # OS
 .DS_Store
@@ -28,6 +29,7 @@ Thumbs.db
 # Test artifacts
 pytest.ini
 .pytest_cache/
+ci-logs/
 
 # Local validation artifacts
 validate_hardening.py
