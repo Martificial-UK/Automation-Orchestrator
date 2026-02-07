@@ -69,6 +69,11 @@ class TestHealthAndSystem:
         assert data["status"] == "healthy"
         assert "timestamp" in data
         assert "components" in data
+
+    def test_api_docs_route(self, client):
+        """Test API docs are available"""
+        response = client.get("/api/docs")
+        assert response.status_code == 200
     
     def test_dashboard_route(self, client):
         """Test dashboard HTML is served"""
