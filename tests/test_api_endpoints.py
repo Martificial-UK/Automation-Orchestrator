@@ -21,7 +21,10 @@ def client():
     test_config = {
         "log_path": "./logs/test.log",
         "log_level": "INFO",
-        "workflows": []
+        "workflows": [],
+        "license": {
+            "enabled": False
+        }
     }
     app = create_app(test_config)
     with TestClient(app) as test_client:
@@ -73,7 +76,6 @@ class TestLeadEndpoints:
     def test_ingest_lead(self, client, sample_lead, mock_audit_logger):
         """Test lead ingestion"""
         response = client.post("/api/leads", json=sample_lead)
-        print(f"/api/leads response: status={response.status_code} body={response.text}")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ["success", "queued"]
@@ -417,7 +419,7 @@ class TestErrorHandling:
         """Test malformed JSON request"""
         response = client.post(
             "/api/leads",
-            data="not-valid-json",
+            content="not-valid-json",
             headers={"Content-Type": "application/json"}
         )
         assert response.status_code == 422
