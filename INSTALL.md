@@ -24,6 +24,23 @@ The installer will:
 3. Start all services (API server + background worker)
 4. Display the server URL
 
+### Docker Single-Host Deployment (Recommended)
+
+1) Copy the Docker env template to a secure location and fill in values:
+```bash
+cp .env.docker.example /opt/automation-orchestrator/secrets/.env
+```
+
+2) Run the deploy script:
+```bash
+bash scripts/deploy_docker.sh /opt/automation-orchestrator/secrets/.env
+```
+
+3) Verify health:
+```bash
+curl http://localhost:8000/health
+```
+
 ### Services
 
 After installation, the following services will be running:

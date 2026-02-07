@@ -14,6 +14,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - LICENSE_SECRET=${LICENSE_SECRET:-change-me-in-production}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./automation_orchestrator.db}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
