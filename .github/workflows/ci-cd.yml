@@ -68,6 +68,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
+          retention-days: 7
           path: |
             bandit-report.json
             safety-report.json
@@ -157,6 +158,7 @@ jobs:
         if: always()
         with:
           name: test-reports
+          retention-days: 7
           path: |
             .coverage
             htmlcov/
@@ -182,6 +184,13 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          retention-days: 7
+          path: frontend/dist
 
   # Docker image build
   build:
