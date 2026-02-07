@@ -5,7 +5,7 @@ Tests all major API endpoints including health, leads, workflows, CRM, email, an
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
 
