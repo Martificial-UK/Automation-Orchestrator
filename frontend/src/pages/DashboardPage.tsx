@@ -39,6 +39,10 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
+  const successRate = metrics && metrics.requests_total > 0
+    ? (1 - metrics.requests_failed / metrics.requests_total) * 100
+    : 0;
+
   const stats = [
     {
       name: 'Total Leads',
@@ -131,7 +135,7 @@ export const DashboardPage: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Success Rate</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {((1 - metrics.requests_failed / metrics.requests_total) * 100).toFixed(1)}%
+                  {successRate.toFixed(1)}%
                 </p>
               </div>
             </div>

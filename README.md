@@ -1,6 +1,6 @@
 # Automation Orchestrator
 
-Enterprise-grade, config-driven automation platform built on JohnEngine. Automate lead management, CRM integration, email campaigns, and workflow orchestration with a modern web dashboard and comprehensive REST API.
+Enterprise-grade, config-driven automation platform built on JohnEngine. Automate lead management, CRM integration, email campaigns, and workflow orchestration with a modern web dashboard and comprehensive REST API. Designed for on-prem, one-time installation.
 
 ## 🚀 Features
 
@@ -9,9 +9,9 @@ Enterprise-grade, config-driven automation platform built on JohnEngine. Automat
 - **CRM Integration** - Bi-directional sync with Salesforce and HubSpot
 - **Workflow Orchestration** - Config-driven automation workflows with triggers and actions
 - **Email Campaigns** - Automated nurture sequences and transactional emails
-- **Analytics Dashboard** - Real-time metrics with Chart.js visualizations
+- **Analytics Dashboard** - Real-time metrics with Recharts visualizations
 - **Audit Logging** - Comprehensive security and compliance tracking
-- **REST API** - 28+ endpoints with OpenAPI documentation
+- **REST API** - 60+ endpoints with OpenAPI documentation
 - **Multi-tenancy** - Isolated workspaces for enterprise deployments
 - **RBAC** - Role-based access control with fine-grained permissions
 
@@ -27,7 +27,7 @@ Enterprise-grade, config-driven automation platform built on JohnEngine. Automat
 
 ## 📋 Prerequisites
 
-- **Python 3.12+**
+- **Python 3.8+**
 - **pip** package manager
 - **Git** (optional, for cloning)
 
@@ -75,6 +75,14 @@ Sample config located at: `src/config/sample_config.json`
 
 Customize workflows, integrations, and security settings as needed.
 
+## 🔑 Licensing & Support (On-Prem)
+
+- **Trial**: 7-day trial on first start
+- **License**: One-time license key unlocks full access
+- **Support**: Optional Bronze/Silver/Gold packages
+
+See [INSTALL.md](INSTALL.md) and [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md) for details.
+
 ## 🚦 Quick Start
 
 ### Option 1: Run API Server with Dashboard
@@ -88,6 +96,15 @@ python -m automation_orchestrator.main --api --host 127.0.0.1 --port 8000
 - **API Docs**: http://127.0.0.1:8000/api/docs
 - **OpenAPI Schema**: http://127.0.0.1:8000/api/openapi.json
 
+### Option 1b: Run Frontend Dev Server (Optional)
+```bash
+cd "c:\AI Automation\Automation Orchestrator\frontend"
+npm install
+npm run dev
+```
+
+The dashboard will be available at `http://localhost:3000` and will proxy API calls to `http://localhost:8000`.
+
 ### Option 2: Run CLI Mode
 ```bash
 cd "c:\AI Automation\Automation Orchestrator\src"
@@ -100,7 +117,7 @@ Modern analytics dashboard with real-time metrics:
 
 ### Features
 - **6 Live Stat Cards**: Total Leads, Qualification Rate, Active Workflows, Emails Sent, Revenue, System Events
-- **4 Chart.js Visualizations**:
+- **4 Recharts Visualizations**:
   - Lead Performance (bar chart)
   - Workflow Success Rate (doughnut chart)
   - Email Engagement (bar chart)
@@ -110,11 +127,12 @@ Modern analytics dashboard with real-time metrics:
 - **Responsive design** for mobile and desktop
 
 ### Technology Stack
-- Vue 3 - Reactive frontend framework
-- Chart.js 4.4.1 - Data visualization
-- Font Awesome 6.5.1 - Icons
+- React 18 - Modern frontend framework
+- Vite - Fast dev server and build tooling
+- Tailwind CSS - Utility-first styling
+- Recharts - Data visualization
+- Lucide React - Icon library
 - Axios - API client
-- Modern CSS with gradient backgrounds
 
 ## 🔌 API Reference
 
@@ -123,7 +141,28 @@ Modern analytics dashboard with real-time metrics:
 **System & Health**
 - `GET /` - Serve dashboard
 - `GET /health` - Health check
+- `GET /health/detailed` - Detailed health status
+- `GET /metrics` - Metrics endpoint
 - `GET /api/docs` - Interactive API documentation
+- `GET /api/openapi.json` - OpenAPI schema
+
+**Authentication**
+- `POST /api/auth/login` - Login and receive JWT
+- `GET /api/auth/me` - Current user info
+- `POST /api/auth/keys` - Create API key
+- `GET /api/auth/keys` - List API keys
+- `DELETE /api/auth/keys/{key_id}` - Revoke API key
+
+**License**
+- `GET /api/license/status` - License status
+- `GET /api/license/purchase` - Purchase URL
+- `POST /api/license/activate` - Activate license (admin)
+
+**Monitoring**
+- `GET /api/monitoring/alerts` - Active alerts
+- `GET /api/monitoring/performance` - Performance metrics
+- `POST /api/monitoring/alerts/threshold` - Update alert threshold
+- `POST /api/monitoring/metrics/export` - Export metrics
 
 **Lead Management**
 - `POST /api/leads` - Ingest new lead
@@ -133,6 +172,10 @@ Modern analytics dashboard with real-time metrics:
 - `DELETE /api/leads/{lead_id}` - Delete lead
 - `POST /api/leads/deduplicate` - Deduplicate leads
 
+**Deduplication**
+- `POST /api/dedup` - Deduplicate batch
+- `GET /api/dedup/config` - Deduplication config/statistics
+
 **Workflow Management**
 - `POST /api/workflows/trigger` - Trigger workflow
 - `GET /api/workflows/{workflow_id}/status` - Get workflow status
@@ -140,11 +183,21 @@ Modern analytics dashboard with real-time metrics:
 - `POST /api/workflows/pause` - Pause workflow
 - `POST /api/workflows/resume` - Resume workflow
 
+**Workflow Builder**
+- `GET /api/builder/templates` - Workflow templates
+
 **CRM Integration**
 - `POST /api/crm/salesforce/sync` - Sync to Salesforce
 - `GET /api/crm/salesforce/lead/{sf_lead_id}` - Get Salesforce lead
 - `POST /api/crm/hubspot/sync` - Sync to HubSpot
 - `GET /api/crm/hubspot/contact/{contact_id}` - Get HubSpot contact
+- `POST /api/crm/config` - Configure CRM
+- `GET /api/crm/status` - Check CRM status
+
+**Campaigns**
+- `POST /api/campaigns/webhook` - Campaign webhook
+- `GET /api/campaigns` - List campaigns
+- `GET /api/campaigns/{campaign_id}/metrics` - Campaign metrics
 
 **Email Campaigns**
 - `POST /api/email/send` - Send email
@@ -165,15 +218,95 @@ Modern analytics dashboard with real-time metrics:
 - `GET /api/audit/events` - Audit event log
 - `GET /api/audit/events/{event_id}` - Event details
 
+**Admin (Audit Maintenance)**
+- `POST /api/admin/audit/backup` - Backup audit log
+- `GET /api/admin/audit/backups` - List audit backups
+
 **Multi-tenancy**
 - `GET /api/tenants` - List tenants
 - `POST /api/tenants` - Create tenant
 - `GET /api/tenants/{tenant_id}` - Get tenant details
+- `PUT /api/tenants/{tenant_id}/plan` - Update tenant plan
 
 **User Management (RBAC)**
 - `GET /api/users` - List users
 - `POST /api/users` - Create user
 - `PUT /api/users/{user_id}/role` - Update user role
+- `GET /api/users/{user_id}` - Get user
+- `POST /api/users/{user_id}/activate` - Activate user
+- `POST /api/users/{user_id}/deactivate` - Deactivate user
+
+### Endpoint Inventory (Generated from api.py)
+
+Total endpoints: 65
+
+| Method | Path |
+|--------|------|
+| GET | / |
+| GET | /{full_path:path} |
+| POST | /api/admin/audit/backup |
+| GET | /api/admin/audit/backups |
+| GET | /api/analytics/daily |
+| GET | /api/analytics/dashboard |
+| GET | /api/analytics/emails |
+| GET | /api/analytics/export |
+| GET | /api/analytics/leads |
+| GET | /api/analytics/roi |
+| GET | /api/analytics/workflows |
+| GET | /api/audit/events |
+| GET | /api/audit/events/{event_id} |
+| GET | /api/auth/keys |
+| POST | /api/auth/keys |
+| DELETE | /api/auth/keys/{key_id} |
+| POST | /api/auth/login |
+| GET | /api/auth/me |
+| GET | /api/builder/templates |
+| GET | /api/campaigns |
+| GET | /api/campaigns/{campaign_id}/metrics |
+| POST | /api/campaigns/webhook |
+| POST | /api/crm/config |
+| GET | /api/crm/hubspot/contact/{contact_id} |
+| POST | /api/crm/hubspot/sync |
+| GET | /api/crm/salesforce/lead/{sf_lead_id} |
+| POST | /api/crm/salesforce/sync |
+| GET | /api/crm/status |
+| POST | /api/dedup |
+| GET | /api/dedup/config |
+| POST | /api/email/campaign |
+| GET | /api/email/campaign/{campaign_id}/stats |
+| POST | /api/email/send |
+| GET | /api/email/templates |
+| GET | /api/leads |
+| POST | /api/leads |
+| DELETE | /api/leads/{lead_id} |
+| GET | /api/leads/{lead_id} |
+| PUT | /api/leads/{lead_id} |
+| POST | /api/leads/bulk |
+| POST | /api/leads/deduplicate |
+| POST | /api/license/activate |
+| GET | /api/license/purchase |
+| GET | /api/license/status |
+| GET | /api/monitoring/alerts |
+| POST | /api/monitoring/alerts/threshold |
+| POST | /api/monitoring/metrics/export |
+| GET | /api/monitoring/performance |
+| GET | /api/status |
+| GET | /api/tenants |
+| POST | /api/tenants |
+| GET | /api/tenants/{tenant_id} |
+| PUT | /api/tenants/{tenant_id}/plan |
+| GET | /api/users |
+| POST | /api/users |
+| GET | /api/users/{user_id} |
+| POST | /api/users/{user_id}/activate |
+| POST | /api/users/{user_id}/deactivate |
+| PUT | /api/users/{user_id}/role |
+| GET | /api/workflows/{workflow_id}/status |
+| GET | /api/workflows/active |
+| POST | /api/workflows/trigger |
+| GET | /health |
+| GET | /health/detailed |
+| GET | /metrics |
 
 ### Authentication
 Most endpoints require authentication. Include API key in headers:
