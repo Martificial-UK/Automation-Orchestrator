@@ -44,6 +44,12 @@ Status notes:
 - [ ] Firewall rules and ports validated
 
 ## 4) Build & Release
+Status notes:
+- Version tag: Not created yet
+- Docker image: Not built/published yet
+- GitHub release: Not created yet
+- Frontend build artifact: Not verified yet
+
 - [ ] Create version tag `vX.Y.Z`
 - [ ] CI builds Docker image and publishes to registry
 - [ ] GitHub release created with notes
