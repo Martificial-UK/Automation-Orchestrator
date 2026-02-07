@@ -56,6 +56,12 @@ Status notes:
 - [ ] Frontend build artifact verified
 
 ## 5) Deploy
+Status notes:
+- Deployment: Not deployed yet
+- Config updates: Not applied yet
+- Migrations: Required, not run
+- Health verification: Not verified yet
+
 - [ ] Pull new image to production host
 - [ ] Apply configuration updates
 - [ ] Run database migrations (if required)
