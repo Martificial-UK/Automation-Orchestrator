@@ -7,7 +7,7 @@ import os
 import jwt
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 import logging
@@ -121,13 +121,13 @@ class JWTHandler:
     @staticmethod
     def create_token(user_id: str, username: str, role: str, hours: int = JWT_EXPIRATION_HOURS) -> str:
         """Create JWT token"""
-        exp = datetime.utcnow() + timedelta(hours=hours)
+        exp = datetime.now(timezone.utc) + timedelta(hours=hours)
         payload = {
             "user_id": user_id,
             "username": username,
             "role": role,
             "exp": exp,
-            "iat": datetime.utcnow()
+            "iat": datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
         return token
@@ -187,7 +187,7 @@ class UserStore:
             email="admin@example.com",
             role="admin",
             is_active=True,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             permissions=["read:all", "write:all", "admin:all"]
         )
         self.users["admin"] = admin_user
@@ -215,7 +215,7 @@ class UserStore:
             email=email,
             role=role,
             is_active=True,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             permissions=self._get_permissions_for_role(role)
         )
         self.users[username] = user

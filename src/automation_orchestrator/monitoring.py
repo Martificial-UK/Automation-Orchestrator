@@ -7,7 +7,7 @@ import logging
 import logging.handlers
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from collections import deque
 from pathlib import Path
@@ -19,7 +19,7 @@ class JSONFormatter(logging.Formatter):
     
     def format(self, record):
         log_data = {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
@@ -152,7 +152,7 @@ class MetricsCollector:
         
         # Store in history
         self.request_history.append({
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'endpoint': endpoint,
             'method': method,
             'status': status_code,
@@ -184,7 +184,7 @@ class MetricsCollector:
         success_rate = 100 - error_rate
         
         return {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             'uptime_seconds': int(uptime_seconds),
             'metrics': {
                 'total_requests': self.total_requests,
@@ -222,7 +222,7 @@ class MetricsCollector:
         """Export daily metrics summary to file"""
         Path(output_dir).mkdir(exist_ok=True)
         
-        today = datetime.utcnow().strftime('%Y-%m-%d')
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         filepath = Path(output_dir) / f'metrics_{today}.json'
         
         summary = self.get_summary()
@@ -259,7 +259,7 @@ class AlertManager:
         error_rate = metrics['metrics']['error_rate_percent']
         if error_rate > self.thresholds['error_rate_high']:
             alert = {
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'severity': 'HIGH',
                 'type': 'error_rate_high',
                 'message': f'Error rate {error_rate}% exceeds threshold {self.thresholds["error_rate_high"]}%',
@@ -272,7 +272,7 @@ class AlertManager:
         avg_latency = metrics['metrics']['avg_latency_ms']
         if avg_latency > self.thresholds['latency_high']:
             alert = {
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'severity': 'MEDIUM',
                 'type': 'latency_high',
                 'message': f'Average latency {avg_latency}ms exceeds threshold {self.thresholds["latency_high"]}ms',

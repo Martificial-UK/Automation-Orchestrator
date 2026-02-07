@@ -6,7 +6,7 @@ Manages user roles, permissions, and access control
 import logging
 from typing import Dict, List, Any, Optional, Set
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ class User:
         self.role = role
         self.email = email
         self.active = active
-        self.created_at = datetime.utcnow().isoformat()
+        self.created_at = datetime.now(timezone.utc).isoformat()
         self.last_login = None
         self.custom_permissions: Set[Permission] = set()
     

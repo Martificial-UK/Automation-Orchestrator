@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from contextlib import asynccontextmanager
 import json
 import logging
 import uuid
@@ -214,12 +215,25 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
     Returns:
         Configured FastAPI app
     """
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if config.get("redis", {}).get("required", False):
+            if not app.state.redis_queue or not app.state.redis_queue.ping():
+                raise RuntimeError("Redis is required but not available")
+        yield
+        if app.state.redis_queue and app.state.redis_queue.client:
+            try:
+                app.state.redis_queue.client.close()
+            except Exception:
+                pass
+
     app = FastAPI(
         title="Automation Orchestrator API",
         description="REST API for lead management and workflow automation",
         version="1.0.0",
         docs_url="/api/docs",
-        openapi_url="/api/openapi.json"
+        openapi_url="/api/openapi.json",
+        lifespan=lifespan
     )
     
     # Store dependencies in app state
@@ -867,7 +881,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
                 background_tasks.add_task(
                     app.state.workflow_runner.process_lead,
                     lead_id=lead_id,
-                    lead_data=lead.dict()
+                    lead_data=lead.model_dump()
                 )
             
             return LeadResponse(
@@ -876,7 +890,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
                 message="Lead created successfully",
                 crm_id=None,
                 timestamp=datetime.now(),
-                data=lead.dict()
+                data=lead.model_dump()
             )
         
         except Exception as e:
@@ -1055,7 +1069,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
                 status="updated",
                 message="Lead updated successfully",
                 timestamp=datetime.now(),
-                data=lead.dict()
+                data=lead.model_dump()
             )
         
         except HTTPException:
@@ -1751,24 +1765,4 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             }
         )
 
-    # ========================================================================
-    # Lifecycle Hooks
-    # ========================================================================
-
-    @app.on_event("startup")
-    async def startup_checks():
-        """Run startup checks for production readiness."""
-        if config.get("redis", {}).get("required", False):
-            if not app.state.redis_queue or not app.state.redis_queue.ping():
-                raise RuntimeError("Redis is required but not available")
-
-    @app.on_event("shutdown")
-    async def shutdown_cleanup():
-        """Release resources on shutdown."""
-        if app.state.redis_queue and app.state.redis_queue.client:
-            try:
-                app.state.redis_queue.client.close()
-            except Exception:
-                pass
-    
     return app

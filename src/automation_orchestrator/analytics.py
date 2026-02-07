@@ -5,7 +5,7 @@ Tracks metrics and generates reports for lead management and workflows
 
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 import json
 
@@ -18,7 +18,7 @@ class AnalyticsEvent:
     def __init__(self, event_type: str, timestamp: Optional[datetime] = None,
                  data: Optional[Dict[str, Any]] = None):
         self.event_type = event_type
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
         self.data = data or {}
     
     def to_dict(self) -> Dict[str, Any]:
@@ -76,8 +76,8 @@ class Analytics:
     
     def get_lead_metrics(self, days: int = 30) -> Dict[str, Any]:
         """Get lead management metrics"""
-        start = datetime.utcnow() - timedelta(days=days)
-        end = datetime.utcnow()
+        start = datetime.now(timezone.utc) - timedelta(days=days)
+        end = datetime.now(timezone.utc)
         
         created = len(self.get_events(self.LEAD_CREATED, start, end))
         qualified = len(self.get_events(self.LEAD_QUALIFIED, start, end))
@@ -99,8 +99,8 @@ class Analytics:
     
     def get_workflow_metrics(self, days: int = 30) -> Dict[str, Any]:
         """Get workflow execution metrics"""
-        start = datetime.utcnow() - timedelta(days=days)
-        end = datetime.utcnow()
+        start = datetime.now(timezone.utc) - timedelta(days=days)
+        end = datetime.now(timezone.utc)
         
         executed = len(self.get_events(self.WORKFLOW_EXECUTED, start, end))
         succeeded = len(self.get_events(self.WORKFLOW_SUCCEEDED, start, end))
@@ -122,8 +122,8 @@ class Analytics:
     
     def get_email_metrics(self, days: int = 30) -> Dict[str, Any]:
         """Get email campaign metrics"""
-        start = datetime.utcnow() - timedelta(days=days)
-        end = datetime.utcnow()
+        start = datetime.now(timezone.utc) - timedelta(days=days)
+        end = datetime.now(timezone.utc)
         
         sent = len(self.get_events(self.EMAIL_SENT, start, end))
         opened = len(self.get_events(self.EMAIL_OPENED, start, end))
@@ -146,7 +146,7 @@ class Analytics:
     def get_dashboard_summary(self, days: int = 30) -> Dict[str, Any]:
         """Get complete dashboard summary"""
         return {
-            "report_date": datetime.utcnow().isoformat(),
+            "report_date": datetime.now(timezone.utc).isoformat(),
             "period_days": days,
             "leads": self.get_lead_metrics(days),
             "workflows": self.get_workflow_metrics(days),
@@ -163,7 +163,7 @@ class Analytics:
             "emails_sent": 0
         })
         
-        start = datetime.utcnow() - timedelta(days=days)
+        start = datetime.now(timezone.utc) - timedelta(days=days)
         
         for event in self.get_events(start_date=start):
             date_key = event.timestamp.date().isoformat()

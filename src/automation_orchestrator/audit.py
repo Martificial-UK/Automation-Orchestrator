@@ -13,7 +13,7 @@ import time
 import re
 import ipaddress
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
 from threading import Lock, Thread, Event
@@ -252,7 +252,7 @@ class AuditLogger:
             return
         
         event = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "type": event_type,
             "details": details
         }
