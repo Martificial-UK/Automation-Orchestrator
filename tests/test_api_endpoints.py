@@ -21,7 +21,13 @@ def client():
     test_config = {
         "log_path": "./logs/test.log",
         "log_level": "INFO",
+        "logging": {
+            "level": "WARNING"
+        },
         "workflows": [],
+        "redis": {
+            "use_fake_redis": True
+        },
         "license": {
             "enabled": False
         }
