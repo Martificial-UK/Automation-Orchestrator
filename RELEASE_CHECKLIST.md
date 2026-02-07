@@ -91,6 +91,11 @@ Status notes:
 - [ ] Test rollback on staging (if available)
 
 ## 8) Sign-Off
+Status notes:
+- Engineering: Not signed off yet
+- Security: Not signed off yet
+- Product/Operations: Not signed off yet
+
 - [ ] Engineering sign-off
 - [ ] Security sign-off
 - [ ] Product/Operations sign-off
