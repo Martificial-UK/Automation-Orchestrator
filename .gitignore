@@ -39,7 +39,6 @@ validation_results.json
 # Local report artifacts
 PRODUCT_SPECIFICATION_COMPLETE.html
 SAAS_DEPLOYMENT_STRATEGY.html
-RELEASE_CHECKLIST.md
 
 # Build
 build/
