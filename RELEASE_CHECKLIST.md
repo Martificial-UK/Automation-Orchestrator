@@ -3,11 +3,17 @@
 Use this checklist for production releases of Automation Orchestrator.
 
 ## 1) Pre-Release Readiness
-- [ ] Confirm release scope, version tag, and changelog summary
-- [ ] Ensure CI is green on `main` (ci-cd + ao-validation)
-- [ ] Verify dependency audit reports are reviewed
-- [ ] Confirm no uncommitted changes or local-only configs
-- [ ] Confirm customer data migration plan (if applicable)
+Release details:
+- Version/tag: v1.0.1 (pre-release)
+- Scope: DevOps hardening
+- Changelog summary: CI/CD hardening, caching, audits, frontend build/lint, release automation
+- Data migration: None
+
+- [x] Confirm release scope, version tag, and changelog summary
+- [x] Ensure CI is green on `main` (ci-cd + ao-validation)
+- [x] Verify dependency audit reports are reviewed
+- [x] Confirm no uncommitted changes or local-only configs
+- [x] Confirm customer data migration plan (if applicable)
 
 ## 2) Security & Compliance
 - [ ] Secrets are stored in a manager (not in repo or .env)
