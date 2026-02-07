@@ -12,6 +12,7 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      - 'frontend/**'
       - 'requirements.txt'
       - 'Dockerfile'
       - 'docker-compose.yml'
@@ -160,11 +161,33 @@ jobs:
             .coverage
             htmlcov/
 
+  # Frontend build
+  frontend:
+    runs-on: ubuntu-latest
+    name: Frontend Build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
   # Docker image build
   build:
     runs-on: ubuntu-latest
     name: Build Docker Image
-    needs: [security, lint, test]
+    needs: [security, lint, test, frontend]
     permissions:
       contents: read
       packages: write
