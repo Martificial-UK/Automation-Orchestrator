@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { authAPI, systemAPI } from '@/services/api';
+import { authAPI, systemAPI, HealthStatus } from '@/services/api';
 import { Key, Shield, AlertCircle } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { user } = useAuth();
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [health, setHealth] = useState<any>(null);
+  type ApiKeysResponse = { keys?: string[] };
+
+  const [apiKeys, setApiKeys] = useState<string[]>([]);
+  const [health, setHealth] = useState<HealthStatus | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -16,7 +18,8 @@ export const SettingsPage: React.FC = () => {
           authAPI.getApiKeys(),
           systemAPI.getDetailedHealth(),
         ]);
-        setApiKeys(keysRes.data.keys || []);
+        const keyPayload = keysRes.data as ApiKeysResponse;
+        setApiKeys(keyPayload.keys || []);
         setHealth(healthRes.data);
       } catch (error) {
         console.error('Error fetching settings data:', error);

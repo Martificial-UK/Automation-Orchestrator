@@ -76,6 +76,13 @@ export interface Campaign {
   };
 }
 
+export interface CampaignMetricsUpdate {
+  sent?: number;
+  opened?: number;
+  clicked?: number;
+  converted?: number;
+}
+
 export interface Workflow {
   id: string;
   name: string;
@@ -83,6 +90,18 @@ export interface Workflow {
   trigger_type?: string;
   created_at?: string;
   last_run?: string;
+}
+
+export interface WorkflowTriggerPayload {
+  name: string;
+  description?: string;
+  steps: Array<{
+    id: string;
+    type: 'trigger' | 'action' | 'condition';
+    label: string;
+    config: Record<string, unknown>;
+  }>;
+  enabled: boolean;
 }
 
 export interface HealthStatus {
@@ -123,14 +142,14 @@ export const campaignsAPI = {
   getAll: () => api.get<Campaign[]>('/campaigns'),
   getById: (id: string) => api.get<Campaign>(`/campaigns/${id}`),
   create: (data: Partial<Campaign>) => api.post<Campaign>('/campaigns', data),
-  updateMetrics: (id: string, metrics: any) => 
+  updateMetrics: (id: string, metrics: CampaignMetricsUpdate) =>
     api.post(`/campaigns/${id}/metrics`, metrics),
 };
 
 // Workflows API
 export const workflowsAPI = {
   getAll: () => api.get<Workflow[]>('/workflows'),
-  trigger: (data: any) => api.post('/workflows', data),
+  trigger: (data: WorkflowTriggerPayload) => api.post('/workflows', data),
   getStatus: (id: string) => api.get(`/workflows/${id}/status`),
 };
 

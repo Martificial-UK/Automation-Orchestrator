@@ -7,7 +7,14 @@ interface WorkflowStep {
   id: string;
   type: 'trigger' | 'action' | 'condition';
   label: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
+}
+
+interface WorkflowPayload {
+  name: string;
+  description: string;
+  steps: WorkflowStep[];
+  enabled: boolean;
 }
 
 const TRIGGERS = [
@@ -72,12 +79,13 @@ export const WorkflowBuilderPage: React.FC = () => {
 
     setSaving(true);
     try {
-      await workflowsAPI.trigger({
+      const payload: WorkflowPayload = {
         name: workflowName,
         description: workflowDescription,
         steps: steps,
         enabled: true,
-      });
+      };
+      await workflowsAPI.trigger(payload);
       alert('Workflow saved successfully!');
       setWorkflowName('');
       setWorkflowDescription('');

@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/Layout';
-import { systemAPI, leadsAPI, campaignsAPI } from '@/services/api';
+import { systemAPI, leadsAPI, campaignsAPI, Metrics, Lead, Campaign } from '@/services/api';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Users, Megaphone, Activity } from 'lucide-react';
 
 export const AnalyticsPage: React.FC = () => {
-  const [metrics, setMetrics] = useState<any>(null);
+  type AnalyticsMetrics = {
+    system: Metrics;
+    leads: Lead[];
+    campaigns: Campaign[];
+  };
+
+  type LeadStatusMap = Record<string, number>;
+
+  const [metrics, setMetrics] = useState<AnalyticsMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,7 +50,7 @@ export const AnalyticsPage: React.FC = () => {
   }
 
   // Prepare chart data
-  const leadStatusData = metrics?.leads?.reduce((acc: any, lead: any) => {
+  const leadStatusData = metrics?.leads?.reduce<LeadStatusMap>((acc, lead) => {
     const status = lead.status || 'new';
     acc[status] = (acc[status] || 0) + 1;
     return acc;
@@ -55,7 +63,7 @@ export const AnalyticsPage: React.FC = () => {
 
   const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444'];
 
-  const campaignPerformanceData = metrics?.campaigns?.map((campaign: any) => ({
+  const campaignPerformanceData = metrics?.campaigns?.map((campaign) => ({
     name: campaign.name.substring(0, 15),
     sent: campaign.metrics?.sent || 0,
     opened: campaign.metrics?.opened || 0,
@@ -100,7 +108,7 @@ export const AnalyticsPage: React.FC = () => {
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Active Campaigns</dt>
                     <dd className="text-2xl font-semibold text-gray-900">
-                      {metrics?.campaigns?.filter((c: any) => c.status === 'active').length || 0}
+                      {metrics?.campaigns?.filter((campaign) => campaign.status === 'active').length || 0}
                     </dd>
                   </dl>
                 </div>
