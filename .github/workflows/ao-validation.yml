@@ -1,0 +1,51 @@
+name: ao-validation
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+  validation:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run API tests
+        shell: pwsh
+        run: |
+          $logDir = "ci-logs"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          python -m pytest tests/ -v 2>&1 | Tee-Object -FilePath "$logDir\api-tests.log"
+
+      - name: Run security validation
+        shell: pwsh
+        run: |
+          $logDir = "ci-logs"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          python security_validation.py 2>&1 | Tee-Object -FilePath "$logDir\security-validation.log"
+
+      - name: Run E2E smoke test
+        shell: pwsh
+        run: |
+          $logDir = "ci-logs"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          powershell -ExecutionPolicy Bypass -File scripts\e2e_smoke_simple.ps1 2>&1 | Tee-Object -FilePath "$logDir\e2e-smoke.log"
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ao-validation-logs
+          path: ci-logs
