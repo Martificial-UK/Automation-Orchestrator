@@ -822,7 +822,7 @@ def create_app(config: Dict[str, Any], lead_ingest=None, crm_connector=None,
             
             return LeadResponse(
                 id=lead_id,
-                status="created",
+                status="success",
                 message="Lead created successfully",
                 crm_id=None,
                 timestamp=datetime.now(),
