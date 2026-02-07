@@ -41,6 +41,29 @@ bash scripts/deploy_docker.sh /opt/automation-orchestrator/secrets/.env
 curl http://localhost:8000/health
 ```
 
+### TLS (Self-Signed, No Domain)
+
+For on-prem, self-hosted installs without a domain, use a self-signed cert:
+
+1) Generate certs:
+```bash
+bash scripts/generate_self_signed_cert.sh /opt/automation-orchestrator/certs
+```
+
+2) Copy into the repo certs folder (used by nginx in docker-compose):
+```bash
+mkdir -p certs
+cp /opt/automation-orchestrator/certs/ao.crt certs/cert.pem
+cp /opt/automation-orchestrator/certs/ao.key certs/key.pem
+```
+
+3) Restart services:
+```bash
+bash scripts/deploy_docker.sh /opt/automation-orchestrator/secrets/.env
+```
+
+Access the UI at `https://<server-ip>/` and accept the self-signed warning.
+
 ### Services
 
 After installation, the following services will be running:
