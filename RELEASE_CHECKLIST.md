@@ -29,6 +29,13 @@ Status notes:
 - [ ] PII handling reviewed (retention + anonymization settings)
 
 ## 3) Infrastructure & Config
+Status notes:
+- Production config file: Not validated yet
+- Environment variables: Not validated yet
+- Database/Redis connectivity: Not verified yet
+- DNS / reverse proxy: Not validated yet
+- Firewall rules/ports: Not validated yet
+
 - [ ] Production config file validated
 - [ ] Environment variables validated
 - [ ] Database connectivity and backups verified
