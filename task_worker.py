@@ -11,13 +11,18 @@ import sys
 from typing import Dict, Any, Callable
 from datetime import datetime
 import time
+from pathlib import Path
 
-from src.automation_orchestrator.redis_queue import get_queue, TaskStatus
-from src.automation_orchestrator.wsgi import load_config
-from src.automation_orchestrator.crm import GenericAPIConnector
-from src.automation_orchestrator.email_followup import EmailFollowup
-from src.automation_orchestrator.lead_ingest import LeadIngest
-from src.automation_orchestrator.workflows import WorkflowRunner
+SRC_DIR = Path(__file__).resolve().parent / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from automation_orchestrator.redis_queue import get_queue, TaskStatus
+from automation_orchestrator.wsgi import load_config
+from automation_orchestrator.crm_connector import GenericAPIConnector
+from automation_orchestrator.email_followup import EmailFollowup
+from automation_orchestrator.lead_ingest import LeadIngest
+from automation_orchestrator.workflow_runner import WorkflowRunner
 
 # Configure logging
 logging.basicConfig(

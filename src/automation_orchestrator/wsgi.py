@@ -6,7 +6,12 @@ Run with: gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.automation_orchestr
 import json
 import os
 import logging
+import sys
 from pathlib import Path
+
+SRC_DIR = Path(__file__).resolve().parents[1]
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from automation_orchestrator.api import create_app
 from automation_orchestrator.lead_ingest import LeadIngest
