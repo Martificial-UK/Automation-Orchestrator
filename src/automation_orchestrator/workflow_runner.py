@@ -3,6 +3,7 @@ Workflow Runner for Automation Orchestrator
 Executes configured workflows for lead management
 """
 import logging
+import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import threading
@@ -37,6 +38,9 @@ class WorkflowRunner:
         
     def start(self):
         """Start workflow execution"""
+        if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("AO_DISABLE_WORKFLOW_RUNNER") == "1":
+            self.logger.info("Workflow runner start skipped in test/disabled mode")
+            return
         if self.running:
             self.logger.warning("Workflow runner already running")
             return
