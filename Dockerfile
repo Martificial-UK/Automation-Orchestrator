@@ -40,11 +40,11 @@ COPY --from=builder /root/.local /home/appuser/.local
 # Copy application code
 COPY src/automation_orchestrator ./automation_orchestrator
 COPY src/config ./config
-COPY src/logs ./logs
 COPY .env.example .env
 
-# Fix permissions
-RUN chown -R appuser:appuser /app
+# Create logs directory and fix permissions
+RUN mkdir -p /app/logs \
+    && chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
