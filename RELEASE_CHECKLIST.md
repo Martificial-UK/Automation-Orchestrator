@@ -69,6 +69,12 @@ Status notes:
 - [ ] Confirm UI loads at `/` and API docs at `/api/docs`
 
 ## 6) Post-Deploy Validation
+Status notes:
+- Smoke test: Not run yet
+- Metrics/alerts: Not verified yet
+- Logs: Not checked yet
+- License status: Not confirmed yet
+
 - [ ] Smoke test: login, lead create, workflow trigger
 - [ ] Verify metrics endpoint and alerts
 - [ ] Check logs for errors/warnings
