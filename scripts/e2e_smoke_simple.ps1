@@ -25,6 +25,7 @@ function Wait-Health {
             }
         } catch {
         }
+        Write-Host ("Waiting for health... {0}/{1}" -f ($i + 1), $Retries) -ForegroundColor Gray
         Start-Sleep -Seconds $DelaySeconds
     }
     return $false
@@ -91,6 +92,14 @@ $maxWait = 30
 for ($i = 0; $i -lt $maxWait; $i++) {
     if (Test-Path "run\services.json") {
         break
+    }
+    if ($script:LauncherProc -and $script:LauncherProc.HasExited) {
+        Write-Host "ERROR: Launcher process exited unexpectedly" -ForegroundColor Red
+        if (Test-Path "logs\launcher.log") { Get-Content "logs\launcher.log" -Tail 200 | Write-Host }
+        if (Test-Path "logs\api.log") { Get-Content "logs\api.log" -Tail 200 | Write-Host }
+        if (Test-Path "logs\worker.log") { Get-Content "logs\worker.log" -Tail 200 | Write-Host }
+        Cleanup-Services
+        exit 1
     }
     if (($i + 1) % 5 -eq 0) {
         Write-Host ("Waiting for services.json... {0}/{1}s" -f (($i + 1)), $maxWait) -ForegroundColor Gray
