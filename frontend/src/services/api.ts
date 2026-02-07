@@ -92,17 +92,22 @@ export interface Workflow {
   last_run?: string;
 }
 
-export interface WorkflowTriggerPayload {
-  name: string;
-  description?: string;
-  steps: Array<{
-    id: string;
-    type: 'trigger' | 'action' | 'condition';
-    label: string;
-    config: Record<string, unknown>;
-  }>;
-  enabled: boolean;
-}
+export type WorkflowTriggerPayload =
+  | {
+      workflow_id: string;
+      data?: Record<string, unknown>;
+    }
+  | {
+      name: string;
+      description?: string;
+      steps: Array<{
+        id: string;
+        type: 'trigger' | 'action' | 'condition';
+        label: string;
+        config: Record<string, unknown>;
+      }>;
+      enabled: boolean;
+    };
 
 export interface HealthStatus {
   status: string;

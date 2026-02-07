@@ -49,6 +49,11 @@ export const AnalyticsPage: React.FC = () => {
     );
   }
 
+  const systemMetrics = metrics?.system;
+  const successRate = systemMetrics && systemMetrics.requests_total > 0
+    ? ((1 - systemMetrics.requests_failed / systemMetrics.requests_total) * 100)
+    : 0;
+
   // Prepare chart data
   const leadStatusData = metrics?.leads?.reduce<LeadStatusMap>((acc, lead) => {
     const status = lead.status || 'new';
@@ -144,9 +149,7 @@ export const AnalyticsPage: React.FC = () => {
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">Success Rate</dt>
                     <dd className="text-2xl font-semibold text-gray-900">
-                      {metrics?.system?.requests_total > 0
-                        ? ((1 - metrics.system.requests_failed / metrics.system.requests_total) * 100).toFixed(1)
-                        : 0}%
+                      {successRate.toFixed(1)}%
                     </dd>
                   </dl>
                 </div>
