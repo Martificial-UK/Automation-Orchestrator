@@ -1,3 +1,31 @@
+## Secret Management
+
+### Environment Variables
+
+All sensitive credentials (API keys, passwords, tokens, secrets) must be set via environment variables. Example variables:
+
+- JWT_SECRET
+- LICENSE_SECRET
+- ADMIN_USERNAME
+- ADMIN_PASSWORD
+- CRM_API_TOKEN
+- SF_CLIENT_ID, SF_CLIENT_SECRET, SF_USERNAME, SF_PASSWORD, SF_SECURITY_TOKEN
+- HUBSPOT_API_KEY
+- SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL, SMTP_FROM_NAME, SMTP_SENDER_EMAIL, SMTP_SENDER_PASSWORD
+
+### Secure Storage
+
+Do not store secrets in code or config files. Use a secrets manager (e.g., GitHub Actions secrets, Azure Key Vault, AWS Secrets Manager) for production deployments.
+
+### Application Loading
+
+The application will fail to start if required secrets are not set. Ensure all environment variables are configured before deployment.
+
+### Validation
+
+Run `python validate_secrets.py` before each release to check for hardcoded or placeholder secrets.
+
+---
 # Production Deployment Guide
 
 **Audit System v3.0 - Performance Optimized**  

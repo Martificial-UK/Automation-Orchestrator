@@ -59,6 +59,22 @@ Write-Host ""
 
 # Summary
 Write-Host "[4/4] Setup Complete!" -ForegroundColor Yellow
+Write-Host "[4/4] Setup Complete!" -ForegroundColor Yellow
+
+# Post-install validation: Check for admin credentials environment variables
+$adminUser = [Environment]::GetEnvironmentVariable("ADMIN_USERNAME")
+$adminPass = [Environment]::GetEnvironmentVariable("ADMIN_PASSWORD")
+if (-not $adminUser -or -not $adminPass) {
+    Write-Host "⚠️  WARNING: ADMIN_USERNAME and/or ADMIN_PASSWORD environment variables are not set!" -ForegroundColor Red
+    Write-Host "   Please set these before launching the backend server." -ForegroundColor Yellow
+    Write-Host "   See DEPLOYMENT_GUIDE.md for instructions." -ForegroundColor Gray
+    Write-Host ""
+} else {
+    Write-Host "✓ Admin credentials detected in environment variables." -ForegroundColor Green
+    Write-Host "   Username: $adminUser" -ForegroundColor White
+    Write-Host "   Password: (hidden)" -ForegroundColor White
+    Write-Host ""
+}
 Write-Host ""
 Write-Host "╔═══════════════════════════════════════════════════════╗" -ForegroundColor Green
 Write-Host "║              🎉 Setup Successful! 🎉                  ║" -ForegroundColor Green
@@ -86,9 +102,11 @@ Write-Host "   http://localhost:8000" -ForegroundColor White
 Write-Host ""
 
 Write-Host "3. Login with default credentials:" -ForegroundColor Yellow
-Write-Host "   Username: admin" -ForegroundColor White
-Write-Host "   Password: admin123" -ForegroundColor White
-Write-Host ""
+Write-Host "3. Login with your admin credentials:" -ForegroundColor Yellow
+Write-Host "   Username: (set via ADMIN_USERNAME environment variable)" -ForegroundColor White
+Write-Host "   Password: (set via ADMIN_PASSWORD environment variable)" -ForegroundColor White
+Write-Host "   See DEPLOYMENT_GUIDE.md for details." -ForegroundColor Gray
+Write-Host "" 
 
 Write-Host "📚 For Development Mode:" -ForegroundColor Cyan
 Write-Host "   If you want to edit the frontend with hot-reload:" -ForegroundColor Gray

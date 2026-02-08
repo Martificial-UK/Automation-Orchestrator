@@ -15,7 +15,10 @@ def api_auth_login():
     username = data.get("username")
     password = data.get("password")
     # Simple hardcoded check for demo purposes
-    if username == "admin" and password == "admin123":
+    import os
+    admin_user = os.getenv("ADMIN_USERNAME")
+    admin_pass = os.getenv("ADMIN_PASSWORD")
+    if username == admin_user and password == admin_pass:
         return jsonify({"token": "demo-token", "user": {"username": "admin"}})
     return jsonify({"error": "Invalid credentials"}), 401
 

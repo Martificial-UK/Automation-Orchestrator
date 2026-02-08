@@ -119,7 +119,8 @@ class AuditLogger:
         self.performance_data: Dict[str, List[float]] = {}
         
         # Compliance
-        self.anonymize_pii = False
+        import os
+        self.anonymize_pii = os.getenv("PRODUCTION_MODE", "False").lower() == "true"
         
         # PHASE 2: Rate limiting
         self.rate_limiters: Dict[str, deque] = defaultdict(deque)

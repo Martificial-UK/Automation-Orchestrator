@@ -9,8 +9,8 @@
     "type": "generic_api",
     "api_base_url": "https://api.yourcrm.com",
     "auth": {
-      "type": "bearer",
-      "token": "your_api_token_here"
+        "type": "bearer",
+        "token": "${CRM_API_TOKEN}"
     },
     "create_endpoint": "/api/v1/leads",
     "get_endpoint": "/api/v1/leads/{id}",
@@ -25,12 +25,12 @@
   },
   
   "smtp": {
-    "host": "smtp.gmail.com",
-    "port": 587,
-    "username": "your_email@gmail.com",
-    "password": "your_app_password",
-    "from_email": "your_email@gmail.com",
-    "from_name": "Your Company"
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "username": "${SMTP_USERNAME}",
+      "password": "${SMTP_PASSWORD}",
+      "from_email": "${SMTP_FROM_EMAIL}",
+      "from_name": "${SMTP_FROM_NAME}"
   },
   
   "workflows": [

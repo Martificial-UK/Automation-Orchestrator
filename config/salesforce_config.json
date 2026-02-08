@@ -4,11 +4,11 @@
   "crm": {
     "crm_type": "salesforce",
     "instance_url": "https://na1.salesforce.com",
-    "client_id": "your_salesforce_client_id",
-    "client_secret": "your_salesforce_client_secret",
-    "username": "your_salesforce_username@example.com",
-    "password": "your_salesforce_password",
-    "security_token": "your_salesforce_security_token",
+    "client_id": "${SF_CLIENT_ID}",
+    "client_secret": "${SF_CLIENT_SECRET}",
+    "username": "${SF_USERNAME}",
+    "password": "${SF_PASSWORD}",
+    "security_token": "${SF_SECURITY_TOKEN}",
     "field_mapping": {
       "source": "LeadSource",
       "company": "Company"
@@ -29,8 +29,8 @@
   "email": {
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587,
-    "sender_email": "noreply@example.com",
-    "sender_password": "your_email_password"
+    "sender_email": "${SMTP_SENDER_EMAIL}",
+    "sender_password": "${SMTP_SENDER_PASSWORD}"
   },
   "workflow": {
     "poll_interval": 60,

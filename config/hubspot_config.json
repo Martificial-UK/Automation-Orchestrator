@@ -3,7 +3,7 @@
   "log_level": "INFO",
   "crm": {
     "crm_type": "hubspot",
-    "api_key": "pat-na1-your-hubspot-private-app-token",
+    "api_key": "${HUBSPOT_API_KEY}",
     "field_mapping": {
       "source": "hs_lead_status",
       "company": "company"
@@ -24,8 +24,8 @@
   "email": {
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587,
-    "sender_email": "noreply@example.com",
-    "sender_password": "your_email_password"
+    "sender_email": "${SMTP_SENDER_EMAIL}",
+    "sender_password": "${SMTP_SENDER_PASSWORD}"
   },
   "workflow": {
     "poll_interval": 60,
