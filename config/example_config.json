@@ -1,0 +1,148 @@
+{
+  "_comment": "Automation Orchestrator Configuration - Sales & Lead Management",
+  
+  "log_path": "logs/orchestrator.log",
+  "log_level": "INFO",
+  "poll_interval": 300,
+  
+  "crm": {
+    "type": "generic_api",
+    "api_base_url": "https://api.yourcrm.com",
+    "auth": {
+      "type": "bearer",
+      "token": "your_api_token_here"
+    },
+    "create_endpoint": "/api/v1/leads",
+    "get_endpoint": "/api/v1/leads/{id}",
+    "list_endpoint": "/api/v1/leads",
+    "field_mapping": {
+      "email": "email",
+      "name": "full_name",
+      "phone": "phone_number",
+      "company": "company_name",
+      "notes": "message"
+    }
+  },
+  
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "username": "your_email@gmail.com",
+    "password": "your_app_password",
+    "from_email": "your_email@gmail.com",
+    "from_name": "Your Company"
+  },
+  
+  "workflows": [
+    {
+      "name": "sales_lead_management",
+      "enabled": true,
+      
+      "sources": [
+        {
+          "type": "web_form",
+          "name": "website_contact_form",
+          "endpoint": "https://api.yourwebsite.com/leads",
+          "method": "GET",
+          "headers": {
+            "Accept": "application/json"
+          },
+          "auth": {
+            "type": "api_key",
+            "key_name": "X-API-Key",
+            "key_value": "your_api_key"
+          },
+          "response_type": "list",
+          "data_path": "data",
+          "field_mapping": {
+            "email": "email",
+            "name": "name",
+            "phone": "phone",
+            "company": "company",
+            "message": "message"
+          },
+          "id_field": "id"
+        },
+        {
+          "type": "email",
+          "name": "inquiry_inbox",
+          "server": "imap.gmail.com",
+          "username": "leads@yourcompany.com",
+          "password": "your_email_password",
+          "folder": "INBOX",
+          "search_criteria": "UNSEEN",
+          "mark_as_read": true,
+          "extraction_patterns": {
+            "phone": "Phone:?\\s*([\\d\\s\\-\\+\\(\\)]+)",
+            "company": "Company:?\\s*(.+)",
+            "budget": "Budget:?\\s*([\\$\\d,\\.]+)"
+          }
+        }
+      ],
+      
+      "qualification_rules": [
+        {
+          "type": "field_exists",
+          "field": "email",
+          "description": "Lead must have email"
+        },
+        {
+          "type": "field_regex",
+          "field": "email",
+          "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+          "description": "Email must be valid format"
+        }
+      ],
+      
+      "routing_rules": [
+        {
+          "condition": {
+            "type": "contains",
+            "field": "message",
+            "value": "enterprise"
+          },
+          "destination": "enterprise_sales_team"
+        },
+        {
+          "condition": {
+            "type": "greater_than",
+            "field": "budget",
+            "value": "10000"
+          },
+          "destination": "senior_sales_rep"
+        },
+        {
+          "condition": {
+            "type": "contains",
+            "field": "company",
+            "value": ""
+          },
+          "destination": "small_business_team"
+        }
+      ],
+      
+      "enable_follow_up": true,
+      "follow_up_sequence": {
+        "sequence_name": "welcome_nurture",
+        "templates": [
+          {
+            "subject": "Thanks for reaching out!",
+            "body": "Hi,\\n\\nThank you for contacting us. We received your inquiry and one of our team members will be in touch within 24 hours.\\n\\nBest regards,\\nYour Company Team",
+            "is_html": false
+          },
+          {
+            "subject": "Following up on your inquiry",
+            "body": "Hi,\\n\\nI wanted to follow up on your recent inquiry. Have you had a chance to review our proposal?\\n\\nBest regards,\\nYour Company Team",
+            "is_html": false
+          },
+          {
+            "subject": "Last chance - special offer inside",
+            "body": "Hi,\\n\\nWe're offering a special 20% discount for new customers who sign up this week.\\n\\nBest regards,\\nYour Company Team",
+            "is_html": false
+          }
+        ],
+        "delays": [0, 48, 120]
+      }
+    }
+  ]
+}

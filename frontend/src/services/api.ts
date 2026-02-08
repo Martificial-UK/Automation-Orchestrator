@@ -1,4 +1,5 @@
 import axios from 'axios';
+import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/api',
@@ -76,6 +77,16 @@ export interface Campaign {
   };
 }
 
+<<<<<<< HEAD
+=======
+export interface CampaignMetricsUpdate {
+  sent?: number;
+  opened?: number;
+  clicked?: number;
+  converted?: number;
+}
+
+>>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 export interface Workflow {
   id: string;
   name: string;
@@ -85,6 +96,26 @@ export interface Workflow {
   last_run?: string;
 }
 
+<<<<<<< HEAD
+=======
+export type WorkflowTriggerPayload =
+  | {
+      workflow_id: string;
+      data?: Record<string, unknown>;
+    }
+  | {
+      name: string;
+      description?: string;
+      steps: Array<{
+        id: string;
+        type: 'trigger' | 'action' | 'condition';
+        label: string;
+        config: Record<string, unknown>;
+      }>;
+      enabled: boolean;
+    };
+
+>>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 export interface HealthStatus {
   status: string;
   version: string;
@@ -123,14 +154,22 @@ export const campaignsAPI = {
   getAll: () => api.get<Campaign[]>('/campaigns'),
   getById: (id: string) => api.get<Campaign>(`/campaigns/${id}`),
   create: (data: Partial<Campaign>) => api.post<Campaign>('/campaigns', data),
+<<<<<<< HEAD
   updateMetrics: (id: string, metrics: any) => 
+=======
+  updateMetrics: (id: string, metrics: CampaignMetricsUpdate) =>
+>>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
     api.post(`/campaigns/${id}/metrics`, metrics),
 };
 
 // Workflows API
 export const workflowsAPI = {
   getAll: () => api.get<Workflow[]>('/workflows'),
+<<<<<<< HEAD
   trigger: (data: any) => api.post('/workflows', data),
+=======
+  trigger: (data: WorkflowTriggerPayload) => api.post('/workflows', data),
+>>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
   getStatus: (id: string) => api.get(`/workflows/${id}/status`),
 };
 

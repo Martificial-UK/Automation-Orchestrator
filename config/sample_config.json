@@ -1,0 +1,89 @@
+{
+  "log_path": "./logs/automation_orchestrator.log",
+  "log_level": "INFO",
+  "logging": {
+    "level": "INFO",
+    "directory": "logs",
+    "format": "json"
+  },
+  "workflows": [],
+  "crm": {
+    "api_base_url": "http://localhost:8000",
+    "create_endpoint": "/api/leads",
+    "get_endpoint": "/api/leads/{id}",
+    "list_endpoint": "/api/leads",
+    "auth": {
+      "type": "bearer",
+      "token": "demo-token"
+    }
+  },
+  "lead_ingest": {
+    "batch_size": 100,
+    "timeout": 30
+  },
+  "email": {
+    "smtp_server": "localhost",
+    "smtp_port": 587,
+    "from_address": "noreply@automation-orchestrator.local"
+  },
+  "deduplication": {
+    "strategy": "email",
+    "threshold": 0.95
+  },
+  "auth": {
+    "enabled": true
+  },
+  "rate_limit": {
+    "enabled": true,
+    "window_seconds": 60,
+    "max_requests": 120
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "queue_prefix": "ao:tasks",
+    "use_fake_redis": false,
+    "allow_fallback": true,
+    "required": false
+  },
+  "monitoring": {
+    "queue_depth_warn": 1000,
+    "error_rate_threshold": 5.0,
+    "latency_threshold_ms": 500.0
+  },
+  "license": {
+    "enabled": true,
+    "trial_days": 7,
+    "state_path": "config/license_state.json",
+    "purchase_url": "https://example.com/buy",
+    "demo_allowlist": [
+      "/",
+      "/health",
+      "/health/detailed",
+      "/metrics",
+      "/api/docs",
+      "/api/openapi.json",
+      "/openapi.json",
+      "/redoc",
+      "/api/analytics/",
+      "/api/workflows/",
+      "/api/leads",
+      "/api/leads/",
+      "/api/campaigns",
+      "/api/campaigns/",
+      "/api/crm/status",
+      "/api/auth/me",
+      "/api/license/status",
+      "/api/license/purchase",
+      "/api/monitoring/",
+      "/api/monitoring/alerts",
+      "/api/monitoring/performance"
+    ],
+    "demo_write_allowlist": [
+      "/api/license/activate",
+      "/api/monitoring/alerts/threshold",
+      "/api/monitoring/metrics/export"
+    ]
+  }
+}

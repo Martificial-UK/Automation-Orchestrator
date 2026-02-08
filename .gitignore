@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+
+# Logs and reports
+logs/
+reports/
+*.log
+*.log.gz
+
+# Local license state
+config/license_state.json
+config/app_config.json
+
+# Secrets
+*.key
+*.pem
+*.env
+logs/.audit_secret
+config/.security_key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+pytest.ini
+.pytest_cache/
+ci-logs/
+
+# Local validation artifacts
+validate_hardening.py
+validate_hardening_quick.py
+validation_results.json
+
+# Local report artifacts
+PRODUCT_SPECIFICATION_COMPLETE.html
+SAAS_DEPLOYMENT_STRATEGY.html
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Runtime
+run/

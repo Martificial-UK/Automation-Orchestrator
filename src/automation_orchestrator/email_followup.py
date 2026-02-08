@@ -1,0 +1,343 @@
+"""
+Email Follow-up System
+Manages automated email follow-up sequences for leads
+"""
+import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from typing import Dict, List, Any, Optional
+from datetime import datetime, timedelta
+import time
+import threading
+import queue
+from automation_orchestrator.audit import get_audit_logger
+
+
+class EmailFollowup:
+    """Manages email follow-up sequences"""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.audit = get_audit_logger()
+        """
+        Initialize email follow-up system
+        
+        Args:
+            config: Email configuration
+        """
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        self.smtp_config = config.get('smtp', {})
+        self.sequence_queue = queue.Queue()
+        self.scheduled_emails = []
+        self.running = False
+        
+    def start(self):
+        """Start follow-up processing"""
+        if self.running:
+            return
+        
+        self.running = True
+        self.logger.info("Starting email follow-up system")
+        
+        # Start processing thread
+        self.thread = threading.Thread(target=self._process_loop, daemon=True)
+        self.thread.start()
+    
+    def stop(self):
+        """Stop follow-up processing"""
+        self.running = False
+        if hasattr(self, 'thread'):
+            self.thread.join(timeout=5)
+        self.logger.info("Email follow-up system stopped")
+    
+    def schedule_sequence(self, lead_id: str, lead_email: str, sequence_name: str,
+                         templates: List[Dict[str, Any]], delays: List[int]):
+        """
+        Schedule a follow-up sequence for a lead
+        
+        Args:
+            lead_id: Lead identifier
+            lead_email: Lead email address
+            sequence_name: Name of the sequence
+            templates: List of email templates
+            delays: List of delays in hours between emails
+        """
+        if not lead_email:
+            self.logger.warning(f"No email for lead {lead_id}, skipping follow-up")
+            return
+        
+        if len(templates) != len(delays):
+            self.logger.error(f"Template count ({len(templates)}) != delay count ({len(delays)})")
+            return
+        
+        sequence = {
+            'lead_id': lead_id,
+            'lead_email': lead_email,
+            'sequence_name': sequence_name,
+            'templates': templates,
+            'delays': delays,
+            'current_step': 0,
+            'next_send_time': datetime.utcnow() + timedelta(hours=delays[0])
+        }
+        
+        self.sequence_queue.put(sequence)
+        self.logger.info(f"Scheduled {len(templates)}-email sequence for lead {lead_id}")
+    
+    def _process_loop(self):
+        """Main processing loop for follow-up emails"""
+        while self.running:
+            try:
+                # Process new sequences from queue
+                while not self.sequence_queue.empty():
+                    sequence = self.sequence_queue.get_nowait()
+                    self.scheduled_emails.append(sequence)
+                
+                # Check scheduled emails
+                now = datetime.utcnow()
+                
+                for sequence in self.scheduled_emails[:]:
+                    if now >= sequence['next_send_time']:
+                        self._send_next_email(sequence)
+                
+                # Clean up completed sequences
+                self.scheduled_emails = [s for s in self.scheduled_emails 
+                                        if s['current_step'] < len(s['templates'])]
+                
+            except Exception as e:
+                self.logger.error(f"Error in follow-up loop: {e}", exc_info=True)
+            
+            # Check every minute
+            time.sleep(60)
+    
+    def _send_next_email(self, sequence: Dict[str, Any]):
+        """
+        Send the next email in a sequence
+        
+        Args:
+            sequence: Sequence dictionary
+        """
+        step = sequence['current_step']
+        
+        if step >= len(sequence['templates']):
+            return
+        
+        template = sequence['templates'][step]
+        lead_email = sequence['lead_email']
+        
+        try:
+            # Render template
+            subject = self._render_template(template.get('subject', ''), sequence)
+            body = self._render_template(template.get('body', ''), sequence)
+            
+            # Send email
+            success = self._send_email(
+                to_email=lead_email,
+                subject=subject,
+                body=body,
+                is_html=template.get('is_html', False)
+            )
+            
+            if success:
+                self.logger.info(f"Sent follow-up email {step + 1} to {lead_email}")
+                
+                # Update sequence
+                sequence['current_step'] += 1
+                
+                # Schedule next email
+                if sequence['current_step'] < len(sequence['templates']):
+                    delay_hours = sequence['delays'][sequence['current_step']]
+                    sequence['next_send_time'] = datetime.utcnow() + timedelta(hours=delay_hours)
+            else:
+                self.logger.error(f"Failed to send follow-up to {lead_email}")
+                
+        except Exception as e:
+            self.logger.error(f"Error sending follow-up: {e}", exc_info=True)
+    
+    def _send_email(self, to_email: str, subject: str, body: str, is_html: bool = False) -> bool:
+        """
+        Send an email via SMTP
+        
+        Args:
+            to_email: Recipient email
+            subject: Email subject
+            body: Email body
+            is_html: Whether body is HTML
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            smtp_host = self.smtp_config.get('host', 'smtp.gmail.com')
+            smtp_port = self.smtp_config.get('port', 587)
+            smtp_username = self.smtp_config.get('username')
+            smtp_password = self.smtp_config.get('password')
+            from_email = self.smtp_config.get('from_email', smtp_username)
+            from_name = self.smtp_config.get('from_name', 'Automation System')
+            
+            if not all([smtp_username, smtp_password]):
+                self.logger.error("SMTP credentials not configured")
+                return False
+            
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = f"{from_name} <{from_email}>"
+            msg['To'] = to_email
+            
+            # Attach body
+            if is_html:
+                msg.attach(MIMEText(body, 'html'))
+            else:
+                msg.attach(MIMEText(body, 'plain'))
+            
+            # Connect and send
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+            
+            self.logger.debug(f"Email sent to {to_email}")
+            return True
+            
+        except smtplib.SMTPException as e:
+            self.logger.error(f"SMTP error sending email: {e}", exc_info=True)
+            return False
+        except Exception as e:
+            self.logger.error(f"Error sending email: {e}", exc_info=True)
+            return False
+    
+    def _render_template(self, template: str, sequence: Dict[str, Any]) -> str:
+        """
+        Render email template with variables
+        
+        Args:
+            template: Template string
+            sequence: Sequence data for variables
+            
+        Returns:
+            Rendered string
+        """
+        # Simple variable substitution
+        rendered = template
+        
+        # Replace common variables
+        rendered = rendered.replace('{{lead_id}}', str(sequence.get('lead_id', '')))
+        rendered = rendered.replace('{{lead_email}}', str(sequence.get('lead_email', '')))
+        rendered = rendered.replace('{{sequence_name}}', str(sequence.get('sequence_name', '')))
+        
+        return rendered
+    
+    def send_immediate_email(self, to_email: str, template_name: str, variables: Dict[str, Any] = None) -> bool:
+        """
+        Send an immediate (non-sequenced) email
+        
+        Args:
+            to_email: Recipient email
+            template_name: Name of template to use
+            variables: Variables for template rendering
+            
+        Returns:
+            True if successful
+        """
+        templates = self.config.get('templates', {})
+        template = templates.get(template_name)
+        
+        if not template:
+            self.logger.error(f"Template not found: {template_name}")
+            return False
+        
+        try:
+            # Render template
+            subject = template.get('subject', '')
+            body = template.get('body', '')
+            
+            if variables:
+                for key, value in variables.items():
+                    subject = subject.replace(f'{{{{{key}}}}}', str(value))
+                    body = body.replace(f'{{{{{key}}}}}', str(value))
+            
+            # Send
+            return self._send_email(
+                to_email=to_email,
+                subject=subject,
+                body=body,
+                is_html=template.get('is_html', False)
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error sending immediate email: {e}", exc_info=True)
+            return False
+    
+    def send_email(self, lead_id: str, template_id: str, subject: Optional[str] = None,
+                   execution_id: Optional[str] = None) -> bool:
+        """
+        Send email to a lead (API endpoint handler)
+        
+        Args:
+            lead_id: Lead ID
+            template_id: Email template ID  
+            subject: Optional custom subject
+            execution_id: Optional execution ID for tracking
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get lead email (would normally fetch from CRM)
+            # For now, this is a placeholder
+            templates = self.config.get('templates', {})
+            template = templates.get(template_id)
+            
+            if not template:
+                self.logger.error(f"Template not found: {template_id}")
+                return False
+            
+            # Use provided subject or template subject
+            email_subject = subject or template.get('subject', '')
+            email_body = template.get('body', '')
+            
+            # Note: In a real implementation, you would fetch the lead's email from CRM
+            # For now we log it
+            self.logger.info(f"Email sent for lead {lead_id} using template {template_id}")
+            
+            self.audit.log_event(
+                event_type="email_sent",
+                lead_id=lead_id,
+                details={"template_id": template_id, "execution_id": execution_id}
+            )
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending email for lead {lead_id}: {e}", exc_info=True)
+            return False
+    
+    def cancel_sequence(self, lead_id: str):
+        """
+        Cancel a scheduled sequence for a lead
+        
+        Args:
+            lead_id: Lead identifier
+        """
+        original_count = len(self.scheduled_emails)
+        self.scheduled_emails = [s for s in self.scheduled_emails if s['lead_id'] != lead_id]
+        
+        if len(self.scheduled_emails) < original_count:
+            self.logger.info(f"Cancelled follow-up sequence for lead {lead_id}")
+    
+    def get_active_sequences(self) -> List[Dict[str, Any]]:
+        """
+        Get list of active sequences
+        
+        Returns:
+            List of sequence dictionaries
+        """
+        return [{
+            'lead_id': s['lead_id'],
+            'lead_email': s['lead_email'],
+            'sequence_name': s['sequence_name'],
+            'current_step': s['current_step'],
+            'total_steps': len(s['templates']),
+            'next_send_time': s['next_send_time'].isoformat()
+        } for s in self.scheduled_emails]

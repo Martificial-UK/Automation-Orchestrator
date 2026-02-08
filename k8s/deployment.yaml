@@ -1,0 +1,309 @@
+# Kubernetes Deployment Configuration for Automation Orchestrator
+# Production-ready Kubernetes manifests for deployment on EKS, GKE, or AKS
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: automation-orchestrator
+---
+
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ao-config
+  namespace: automation-orchestrator
+data:
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "production"
+  DATABASE_POOL_SIZE: "20"
+---
+
+# Secret for sensitive data (create with: kubectl create secret generic ao-secrets ...)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ao-secrets
+  namespace: automation-orchestrator
+type: Opaque
+# Note: Use kubectl create secret generic ao-secrets --from-literal=JWT_SECRET=your-secret --from-literal=DB_PASSWORD=your-password
+---
+
+# ServiceAccount for application
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: automation-orchestrator
+  namespace: automation-orchestrator
+---
+
+# ClusterRole for application permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: automation-orchestrator
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list"]
+---
+
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: automation-orchestrator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: automation-orchestrator
+subjects:
+  - kind: ServiceAccount
+    name: automation-orchestrator
+    namespace: automation-orchestrator
+---
+
+# Deployment for API service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: automation-orchestrator-api
+  namespace: automation-orchestrator
+  labels:
+    app: automation-orchestrator
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: automation-orchestrator
+      component: api
+  template:
+    metadata:
+      labels:
+        app: automation-orchestrator
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: automation-orchestrator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: ghcr.io/your-org/automation-orchestrator:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ao-config
+                  key: LOG_LEVEL
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ao-config
+                  key: ENVIRONMENT
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ao-secrets
+                  key: JWT_SECRET
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ao-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ao-secrets
+                  key: REDIS_URL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - automation-orchestrator
+                topologyKey: kubernetes.io/hostname
+---
+
+# Service for API deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: automation-orchestrator-api
+  namespace: automation-orchestrator
+  labels:
+    app: automation-orchestrator
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: automation-orchestrator
+    component: api
+---
+
+# HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: automation-orchestrator-api-hpa
+  namespace: automation-orchestrator
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: automation-orchestrator-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+---
+
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: automation-orchestrator-api-pdb
+  namespace: automation-orchestrator
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: automation-orchestrator
+      component: api
+---
+
+# NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: automation-orchestrator-api
+  namespace: automation-orchestrator
+spec:
+  podSelector:
+    matchLabels:
+      app: automation-orchestrator
+      component: api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53

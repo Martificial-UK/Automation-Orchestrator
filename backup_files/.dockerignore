@@ -1,0 +1,71 @@
+# .dockerignore - Exclude files from Docker build
+
+# Version control
+.git
+.gitignore
+.gitattributes
+*.patch
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Documentation
+docs/
+README.md
+*.md
+
+# Test files
+tests/
+test_*.py
+*_test.py
+
+# Temporary files
+*.tmp
+*.temp
+.env.local
+.env.*.local
+
+# Docker files (don't need these in image)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backups
+*.backup
+*.bak
+*.old
+
+# Node modules (if using any Node tools)
+node_modules/
+npm-debug.log

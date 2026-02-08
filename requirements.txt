@@ -1,5 +1,30 @@
+<<<<<<< HEAD
 
 Flask
 python-dotenv
 locust
 requests
+fastapi>=0.128.1
+uvicorn>=0.40.0
+pydantic>=2.12.5
+requests>=2.31.0
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0
+PyJWT>=2.8.0
+python-multipart>=0.0.6
+redis>=5.0.0
+fakeredis>=2.21.0
+=======
+fastapi>=0.128.1
+uvicorn>=0.40.0
+pydantic>=2.12.5
+requests>=2.31.0
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0
+PyJWT>=2.8.0
+python-multipart>=0.0.6
+redis>=5.0.0
+fakeredis>=2.21.0
+>>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1

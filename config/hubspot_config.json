@@ -1,0 +1,53 @@
+{
+  "log_path": "./logs/automation_orchestrator.log",
+  "log_level": "INFO",
+  "crm": {
+    "crm_type": "hubspot",
+    "api_key": "pat-na1-your-hubspot-private-app-token",
+    "field_mapping": {
+      "source": "hs_lead_status",
+      "company": "company"
+    }
+  },
+  "lead_ingest": {
+    "sources": [
+      {
+        "type": "web_form",
+        "endpoint": "https://api.example.com/leads",
+        "method": "GET",
+        "headers": {
+          "Accept": "application/json"
+        }
+      }
+    ]
+  },
+  "email": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "noreply@example.com",
+    "sender_password": "your_email_password"
+  },
+  "workflow": {
+    "poll_interval": 60,
+    "workflows": [
+      {
+        "name": "lead_qualification",
+        "enabled": true,
+        "trigger": "lead_ingested",
+        "steps": [
+          {
+            "type": "qualify",
+            "criteria": "email_domain"
+          },
+          {
+            "type": "crm_create"
+          },
+          {
+            "type": "email_send",
+            "template": "welcome"
+          }
+        ]
+      }
+    ]
+  }
+}

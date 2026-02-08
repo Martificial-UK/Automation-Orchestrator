@@ -1,0 +1,104 @@
+{
+  "log_path": "./logs/automation_orchestrator.log",
+  "log_level": "INFO",
+  "workflows": [
+    {
+      "id": "lead_qualification",
+      "name": "Lead Qualification Workflow",
+      "enabled": true,
+      "triggers": ["new_lead", "lead_updated"],
+      "actions": [
+        {
+          "type": "validate_lead",
+          "config": {
+            "required_fields": ["email", "company"]
+          }
+        },
+        {
+          "type": "score_lead",
+          "config": {
+            "scoring_model": "default",
+            "threshold": 70
+          }
+        },
+        {
+          "type": "sync_to_crm",
+          "config": {
+            "target": "salesforce",
+            "object": "Lead"
+          }
+        }
+      ]
+    },
+    {
+      "id": "email_nurture",
+      "name": "Email Nurture Campaign",
+      "enabled": true,
+      "triggers": ["lead_qualified"],
+      "actions": [
+        {
+          "type": "send_email",
+          "config": {
+            "template": "welcome_series",
+            "delay_hours": 0
+          }
+        },
+        {
+          "type": "schedule_followup",
+          "config": {
+            "delay_days": 3,
+            "template": "followup_1"
+          }
+        }
+      ]
+    }
+  ],
+  "integrations": {
+    "salesforce": {
+      "enabled": false,
+      "instance_url": "https://your-instance.salesforce.com",
+      "api_version": "v58.0"
+    },
+    "hubspot": {
+      "enabled": false,
+      "api_endpoint": "https://api.hubapi.com"
+    }
+  },
+  "security": {
+    "rate_limit": {
+      "enabled": true,
+      "max_requests_per_minute": 100
+    },
+    "audit_logging": {
+      "enabled": true,
+      "log_path": "./logs/audit.log",
+      "log_level": "INFO"
+    },
+    "encryption": {
+      "enabled": true,
+      "key_path": "./config/.security_key"
+    }
+  },
+  "api": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "cors_origins": ["http://localhost:3000", "http://127.0.0.1:8000"],
+    "enable_docs": true
+  },
+  "database": {
+    "type": "sqlite",
+    "path": "./data/automation_orchestrator.db"
+  },
+  "notifications": {
+    "email": {
+      "enabled": false,
+      "smtp_host": "smtp.example.com",
+      "smtp_port": 587,
+      "from_address": "noreply@example.com"
+    },
+    "webhook": {
+      "enabled": false,
+      "endpoints": []
+    }
+  }
+}

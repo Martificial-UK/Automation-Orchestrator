@@ -1,0 +1,66 @@
+name: ao-validation
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions: read-all
+
+concurrency:
+  group: ao-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validation:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUNBUFFERED: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_NO_PYTHON_VERSION_WARNING: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run API tests
+        shell: pwsh
+        run: |
+          $logDir = "ci-logs"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          python -m pytest tests/ -vv -rA --maxfail=1 --durations=25 -s --junitxml "$logDir\pytest-results.xml" 2>&1 | Tee-Object -FilePath "$logDir\api-tests.log"
+
+      - name: Run security validation
+        shell: pwsh
+        run: |
+          $logDir = "ci-logs"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          python security_validation.py 2>&1 | Tee-Object -FilePath "$logDir\security-validation.log"
+
+      - name: Run E2E smoke test
+        shell: pwsh
+        run: |
+          $logDir = "ci-logs"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          powershell -ExecutionPolicy Bypass -File scripts\e2e_smoke_simple.ps1 2>&1 | Tee-Object -FilePath "$logDir\e2e-smoke.log"
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ao-validation-logs
+          retention-days: 7
+          path: ci-logs

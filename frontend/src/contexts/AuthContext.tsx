@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+/* eslint-disable react-refresh/only-export-components */
+>>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI, User, LoginRequest } from '@/services/api';
 
