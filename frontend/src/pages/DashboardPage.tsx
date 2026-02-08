@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/Layout';
 import { systemAPI, leadsAPI, campaignsAPI, Metrics, Lead, Campaign } from '@/services/api';
-import { TrendingUp, Users, Megaphone, Workflow, Activity } from 'lucide-react';
+import { Users, Megaphone, Activity } from 'lucide-react';
+// Removed unused: TrendingUp, Workflow
 
 export const DashboardPage: React.FC = () => {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -64,7 +65,7 @@ export const DashboardPage: React.FC = () => {
     {
       name: 'Queue Depth',
       value: metrics?.queue_depth?.toString() || '0',
-      icon: Workflow,
+      icon: null, // Removed Workflow icon
       color: 'text-orange-600',
       bgColor: 'bg-orange-100',
     },
@@ -92,7 +93,7 @@ export const DashboardPage: React.FC = () => {
                 <div className="p-5">
                   <div className="flex items-center">
                     <div className={`flex-shrink-0 ${stat.bgColor} rounded-md p-3`}>
-                      <Icon className={`h-6 w-6 ${stat.color}`} />
+                      {Icon && <Icon className={`h-6 w-6 ${stat.color}`} />}
                     </div>
                     <div className="ml-5 w-0 flex-1">
                       <dl>

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/Layout';
 import { systemAPI, leadsAPI, campaignsAPI } from '@/services/api';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Users, Megaphone, Activity } from 'lucide-react';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+// Removed unused: LineChart, Line, TrendingUp, Users, Megaphone, Activity
 
 export const AnalyticsPage: React.FC = () => {
   const [metrics, setMetrics] = useState<any>(null);
@@ -76,7 +76,7 @@ export const AnalyticsPage: React.FC = () => {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0 bg-blue-100 rounded-md p-3">
-                  <Users className="h-6 w-6 text-blue-600" />
+                  <span className="inline-block h-6 w-6 bg-blue-200 rounded-full" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -94,7 +94,7 @@ export const AnalyticsPage: React.FC = () => {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
-                  <Megaphone className="h-6 w-6 text-green-600" />
+                  <span className="inline-block h-6 w-6 bg-green-200 rounded-full" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -112,7 +112,7 @@ export const AnalyticsPage: React.FC = () => {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
-                  <Activity className="h-6 w-6 text-purple-600" />
+                  <span className="inline-block h-6 w-6 bg-purple-200 rounded-full" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -130,7 +130,7 @@ export const AnalyticsPage: React.FC = () => {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0 bg-orange-100 rounded-md p-3">
-                  <TrendingUp className="h-6 w-6 text-orange-600" />
+                  <span className="inline-block h-6 w-6 bg-orange-200 rounded-full" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
@@ -164,7 +164,7 @@ export const AnalyticsPage: React.FC = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {pieData.map((entry, index) => (
+                  {pieData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

@@ -1,0 +1,4 @@
+@baseUrl = https://automation-orchestrator-api.herokuapp.com
+
+GET {{baseUrl}}/
+Content-Type: application/json
