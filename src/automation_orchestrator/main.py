@@ -1,9 +1,8 @@
-<<<<<<< HEAD
 import os
-from flask import Flask, send_from_directory, request, jsonify
+import json
+from flask import Flask, send_from_directory, request, jsonify, make_response
 
 # Compute absolute path to frontend/dist
-import json
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIST = os.path.abspath(os.path.join(BASE_DIR, '../../frontend/dist'))
 
@@ -19,6 +18,71 @@ def api_auth_login():
     if username == "admin" and password == "admin123":
         return jsonify({"token": "demo-token", "user": {"username": "admin"}})
     return jsonify({"error": "Invalid credentials"}), 401
+
+@app.route("/api/auth/me", methods=["GET"])
+def api_auth_me():
+    # For demo, just check for a token in the Authorization header or cookie
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+    if not token:
+        # Try cookie (not secure, demo only)
+        token = request.cookies.get("authToken")
+    if token == "demo-token":
+        return jsonify({
+            "id": 1,
+            "username": "admin",
+            "email": "admin@example.com",
+            "role": "admin"
+        })
+    return jsonify({"error": "Unauthorized"}), 401
+
+
+# --- DEMO DATA ---
+DEMO_LEADS = [
+    {"id": "1", "name": "John Doe", "email": "john@example.com", "status": "converted", "created_at": "2026-02-08"},
+    {"id": "2", "name": "Jane Smith", "email": "jane@example.com", "status": "contacted", "created_at": "2026-02-07"},
+    {"id": "3", "name": "Sam Lee", "email": "sam@example.com", "status": "converted", "created_at": "2026-02-06"}
+]
+DEMO_CAMPAIGNS = [
+    {"id": "1", "name": "Spring Sale", "status": "active", "metrics": {"sent": 100, "opened": 80, "clicked": 20, "converted": 5}},
+    {"id": "2", "name": "Winter Promo", "status": "completed", "metrics": {"sent": 200, "opened": 150, "clicked": 50, "converted": 3}}
+]
+DEMO_WORKFLOWS = [
+    {"id": "1", "name": "Welcome Flow", "enabled": True, "status": "active"},
+    {"id": "2", "name": "Re-engagement", "enabled": False, "status": "inactive"}
+]
+
+# --- DEMO API ENDPOINTS ---
+@app.route("/api/leads", methods=["GET"])
+def api_leads():
+    return jsonify(DEMO_LEADS)
+
+@app.route("/api/campaigns", methods=["GET"])
+def api_campaigns():
+    return jsonify(DEMO_CAMPAIGNS)
+
+@app.route("/api/workflows", methods=["GET"])
+def api_workflows():
+    return jsonify(DEMO_WORKFLOWS)
+
+@app.route("/api/health/detailed", methods=["GET"])
+def api_health_detailed():
+    return jsonify({
+        "status": "ok",
+        "details": "All systems nominal.",
+        "uptime_seconds": 123456,
+        "version": "1.0.0",
+        "database": {"status": "ok", "details": "Connected"},
+        "queue": {"status": "ok", "details": "No backlog"},
+        "redis": "ok",
+        "queue_depth": 0
+    })
+
+@app.route("/api/auth/api-keys", methods=["GET"])
+def api_auth_api_keys():
+    return jsonify({"keys": ["demo-key-1", "demo-key-2"]})
 
 # --- STATIC/FRONTEND ROUTES ---
 
@@ -40,6 +104,7 @@ def catch_all(path):
     index_path = os.path.join(app.static_folder, "index.html")
     if os.path.exists(index_path):
         print(f"[DEBUG] Serving index.html from: {index_path}")
+            # --- DEMO API ENDPOINTS ---
         return send_from_directory(app.static_folder, "index.html")
     else:
         print(f"[ERROR] index.html not found at: {index_path}")
@@ -50,188 +115,5 @@ if __name__ == "__main__":
     if not os.path.exists(os.path.join(FRONTEND_DIST, "index.html")):
         print("[ERROR] index.html not found in frontend/dist. Please build the frontend.")
     app.run(host="0.0.0.0", port=8000)
-=======
-import json
-import os
-import sys
-import argparse
-import logging
-from pathlib import Path
-
-logger = logging.getLogger(__name__)
 
 
-def load_config(config_path: str) -> dict:
-    """Load configuration from JSON file"""
-    if not os.path.exists(config_path):
-        logger.warning(f"Config file not found: {config_path}, using defaults")
-        return {}
-    
-    with open(config_path, 'r') as f:
-        return json.load(f)
-
-
-def setup_logging(log_path: str, log_level: str = "INFO", name: str = "AutomationOrchestrator") -> None:
-    """Setup logging configuration"""
-    log_file = Path(log_path)
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_path),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
-
-
-def run(config_path: str, api_mode: bool = False, api_host: str = "0.0.0.0", 
-        api_port: int = 8000) -> None:
-    """
-    Run Automation Orchestrator
-    
-    Args:
-        config_path: Path to configuration file
-        api_mode: If True, run REST API server instead of CLI
-        api_host: API server host
-        api_port: API server port
-    """
-    cfg = load_config(config_path)
-    log_path = cfg.get("log_path", "./logs/automation_orchestrator.log")
-    setup_logging(log_path, log_level=cfg.get("log_level", "INFO"), 
-                  name="Automation Orchestrator")
-    
-    print("Automation Orchestrator started with config:")
-    print(json.dumps(cfg, indent=2))
-    
-    if api_mode:
-        run_api(cfg, host=api_host, port=api_port)
-    else:
-        run_cli(cfg)
-
-
-def run_cli(config: dict) -> None:
-    """Run Automation Orchestrator in CLI mode"""
-    try:
-        from automation_orchestrator.lead_ingest import LeadIngest
-        from automation_orchestrator.crm_connector import GenericAPIConnector
-        from automation_orchestrator.workflow_runner import WorkflowRunner
-        from automation_orchestrator.email_followup import EmailFollowup
-        
-        lead_ingest = LeadIngest(config.get('lead_ingest', {}))
-        crm_connector = GenericAPIConnector(config.get('crm', {}))
-        email_followup = EmailFollowup(config.get('email', {}))
-        workflow_runner = WorkflowRunner(
-            config.get('workflow', {}),
-            lead_ingest,
-            crm_connector,
-            email_followup
-        )
-        
-        # Start workflow runner
-        workflow_runner.start()
-        
-        print("✓ Automation Orchestrator running in CLI mode")
-        print("  Press Ctrl+C to stop...")
-
-        if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("AO_DISABLE_WORKFLOW_RUNNER") == "1":
-            print("✓ Automation Orchestrator CLI initialized in test/disabled mode")
-            return
-        
-        # Keep running
-        import time
-        while True:
-            time.sleep(1)
-    
-    except KeyboardInterrupt:
-        print("\n✓ Automation Orchestrator stopped")
-    except Exception as e:
-        logger.error(f"Error running CLI mode: {e}", exc_info=True)
-        raise
-
-
-def run_api(config: dict, host: str = "0.0.0.0", port: int = 8000) -> None:
-    """Run Automation Orchestrator as REST API server"""
-    try:
-        import uvicorn
-        from automation_orchestrator.api import create_app
-        from automation_orchestrator.lead_ingest import LeadIngest
-        from automation_orchestrator.crm_connector import GenericAPIConnector
-        from automation_orchestrator.workflow_runner import WorkflowRunner
-        from automation_orchestrator.email_followup import EmailFollowup
-        
-        # Initialize modules
-        lead_ingest = LeadIngest(config.get('lead_ingest', {}))
-        crm_connector = GenericAPIConnector(config.get('crm', {}))
-        email_followup = EmailFollowup(config.get('email', {}))
-        workflow_runner = WorkflowRunner(
-            config.get('workflow', {}),
-            lead_ingest,
-            crm_connector,
-            email_followup
-        )
-        
-        # Create API app
-        app = create_app(
-            config,
-            lead_ingest=lead_ingest,
-            crm_connector=crm_connector,
-            workflow_runner=workflow_runner,
-            email_followup=email_followup
-        )
-        
-        print(f"\n✓ Starting REST API Server")
-        print(f"  Host: {host}")
-        print(f"  Port: {port}")
-        print(f"  Documentation: http://{host}:{port}/api/docs")
-        print(f"  OpenAPI Schema: http://{host}:{port}/api/openapi.json")
-        
-        # Run server with optimized settings for concurrency
-        uvicorn.run(
-            app,
-            host=host,
-            port=port,
-            log_level="info"
-        )
-    
-    except ImportError as e:
-        logger.error(f"Missing required packages for API mode: {e}")
-        print("✗ Failed to start API mode. Install requirements:")
-        print("  pip install -r requirements.txt")
-        raise
-    except Exception as e:
-        logger.error(f"Error running API mode: {e}", exc_info=True)
-        raise
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Automation Orchestrator - Config-driven automation platform"
-    )
-    parser.add_argument(
-        "--config",
-        default=os.environ.get("AO_CONFIG", "./config/sample_config.json"),
-        help="Path to configuration file"
-    )
-    parser.add_argument(
-        "--api",
-        action="store_true",
-        help="Run in REST API mode instead of CLI mode"
-    )
-    parser.add_argument(
-        "--host",
-        default="0.0.0.0",
-        help="API server host (default: 0.0.0.0)"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="API server port (default: 8000)"
-    )
-    
-    args = parser.parse_args()
-    
-    run(args.config, api_mode=args.api, api_host=args.host, api_port=args.port)
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1

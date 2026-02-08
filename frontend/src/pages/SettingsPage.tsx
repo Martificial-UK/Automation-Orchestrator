@@ -1,24 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-<<<<<<< HEAD
-import { authAPI, systemAPI } from '@/services/api';
-=======
 import { authAPI, systemAPI, HealthStatus } from '@/services/api';
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 import { Key, Shield, AlertCircle } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { user } = useAuth();
-<<<<<<< HEAD
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [health, setHealth] = useState<any>(null);
-=======
   type ApiKeysResponse = { keys?: string[] };
 
   const [apiKeys, setApiKeys] = useState<string[]>([]);
   const [health, setHealth] = useState<HealthStatus | null>(null);
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,12 +18,8 @@ export const SettingsPage: React.FC = () => {
           authAPI.getApiKeys(),
           systemAPI.getDetailedHealth(),
         ]);
-<<<<<<< HEAD
-        setApiKeys(keysRes.data.keys || []);
-=======
         const keyPayload = keysRes.data as ApiKeysResponse;
         setApiKeys(keyPayload.keys || []);
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
         setHealth(healthRes.data);
       } catch (error) {
         console.error('Error fetching settings data:', error);
@@ -92,23 +79,15 @@ export const SettingsPage: React.FC = () => {
             <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
               <div className="space-y-3">
                 {apiKeys.map((key, index) => (
-            import { authAPI, systemAPI } from '@/services/api';
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">API Key {index + 1}</p>
-                      <p className="text-xs text-gray-500 font-mono">{key.substring(0, 32)}...</p>
-                    </div>
-              const [apiKeys, setApiKeys] = useState<string[]>([]);
-              const [health, setHealth] = useState<HealthStatus | null>(null);
-                    </span>
+                  <div key={index}>
+                    <p className="text-sm font-medium text-gray-900">API Key {index + 1}</p>
+                    <p className="text-xs text-gray-500 font-mono">{key.substring(0, 32)}...</p>
                   </div>
                 ))}
               </div>
             </div>
           </div>
         )}
-
-                    const keyPayload = keysRes.data as ApiKeysResponse;
-                    setApiKeys(keyPayload.keys || []);
         {health && (
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="px-4 py-5 sm:px-6">

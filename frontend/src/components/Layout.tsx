@@ -33,10 +33,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     { name: 'Leads', href: '/leads', icon: Users },
     { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
     { name: 'Workflows', href: '/workflows', icon: Workflow },
-<<<<<<< HEAD
-=======
-    { name: 'Builder', href: '/builder', icon: Workflow },
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];

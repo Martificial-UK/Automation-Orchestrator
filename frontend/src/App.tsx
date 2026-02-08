@@ -1,22 +1,14 @@
-<<<<<<< HEAD
-// import React from 'react';
-=======
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-// import React from 'react';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { LeadsPage } from '@/pages/LeadsPage';
 import { CampaignsPage } from '@/pages/CampaignsPage';
 import { WorkflowsPage } from '@/pages/WorkflowsPage';
-<<<<<<< HEAD
-=======
-import { WorkflowBuilderPage } from '@/pages/WorkflowBuilderPage';
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 import { WorkflowBuilderPage } from '@/pages/WorkflowBuilderPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { LoginPage } from '@/pages/LoginPage';
 
 function App() {
   return (
@@ -57,8 +49,6 @@ function App() {
             }
           />
           <Route
-<<<<<<< HEAD
-=======
             path="/builder"
             element={
               <ProtectedRoute>
@@ -67,7 +57,6 @@ function App() {
             }
           />
           <Route
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
             path="/analytics"
             element={
               <ProtectedRoute>

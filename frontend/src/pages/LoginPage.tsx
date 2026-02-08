@@ -1,8 +1,6 @@
+
 import React, { useState } from 'react';
-<<<<<<< HEAD
-=======
 import axios from 'axios';
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lock, User } from 'lucide-react';
@@ -15,8 +13,6 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-<<<<<<< HEAD
-=======
   const getErrorMessage = (err: unknown) => {
     if (axios.isAxiosError(err)) {
       return err.response?.data?.detail || 'Invalid credentials';
@@ -24,7 +20,6 @@ export const LoginPage: React.FC = () => {
     return 'Invalid credentials';
   };
 
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -33,13 +28,8 @@ export const LoginPage: React.FC = () => {
     try {
       await login({ username, password });
       navigate('/');
-<<<<<<< HEAD
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid credentials');
-=======
     } catch (err: unknown) {
       setError(getErrorMessage(err));
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
     } finally {
       setIsLoading(false);
     }
