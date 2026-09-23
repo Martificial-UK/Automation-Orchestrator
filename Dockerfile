@@ -1,44 +1,32 @@
-<<<<<<< HEAD
-# Dockerfile for Automation Orchestrator API
-FROM python:3.11-slim
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build
+
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/src
 
 WORKDIR /app
 
+RUN useradd --create-home --shell /usr/sbin/nologin appuser
+
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
-COPY src/automation_orchestrator/main.py ./main.py
+COPY src/ ./src/
+COPY --from=frontend-builder /frontend/dist ./frontend/dist/
 
-EXPOSE 8000
-
-CMD ["python", "main.py"]
-=======
-# Production Dockerfile for Automation Orchestrator
-# Multi-stage build for optimized image size
-
-# Stage 1: Builder
-FROM python:3.12-slim as builder
-
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["python", "main.py"]
-RUN mkdir -p /app/logs \
+RUN mkdir -p /app/logs /app/config \
     && chown -R appuser:appuser /app
 
-# Switch to non-root user
 USER appuser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose port
 EXPOSE 8000
 
-# Command to run
-CMD ["python", "-m", "automation_orchestrator.main", "--api", "--host", "0.0.0.0", "--port", "8000"]
->>>>>>> b827fdb4458c7573c3e10cfdd001559a627ed4e1
+CMD ["python", "-m", "automation_orchestrator.main"]
