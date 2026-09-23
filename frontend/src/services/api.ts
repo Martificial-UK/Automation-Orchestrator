@@ -67,7 +67,7 @@ export interface Workflow {
   id: string;
   name: string;
   description?: string;
-  steps?: any[];
+  steps?: Array<Record<string, unknown>>;
   enabled?: boolean;
   status?: string;
   trigger_type?: string;
@@ -113,7 +113,7 @@ export const workflowsAPI = {
   create: (workflow: Partial<Workflow>) => api.post<Workflow>('/workflows', workflow),
   update: (id: string, workflow: Partial<Workflow>) => api.put<Workflow>(`/workflows/${id}`, workflow),
   delete: (id: string) => api.delete(`/workflows/${id}`),
-  trigger: (data: any) => api.post('/workflows/trigger', data),
+  trigger: <T extends object>(data: T) => api.post('/workflows/trigger', data),
 };
 
 export default api;

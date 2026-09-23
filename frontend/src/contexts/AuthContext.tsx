@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI, User, LoginRequest } from '@/services/api';
 
@@ -70,7 +71,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  /* eslint-disable react-refresh/only-export-components */
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
