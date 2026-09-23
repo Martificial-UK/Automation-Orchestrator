@@ -19,6 +19,8 @@ config/app_config.json
 *.key
 *.pem
 *.env
+**/.security_key
+backup*.zip
 logs/.audit_secret
 config/.security_key
 
@@ -44,6 +46,7 @@ SAAS_DEPLOYMENT_STRATEGY.html
 build/
 dist/
 *.egg-info/
+*.bak
 
 # Runtime
 run/

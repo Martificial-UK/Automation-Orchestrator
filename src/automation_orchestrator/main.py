@@ -2,6 +2,14 @@ import os
 import json
 from flask import Flask, send_from_directory, request, jsonify, make_response
 
+
+def run(config_path: str) -> dict:
+    """Load a local config for the legacy non-server orchestration entry point."""
+    with open(config_path, "r", encoding="utf-8") as config_file:
+        config = json.load(config_file)
+    print("Automation Orchestrator started")
+    return config
+
 # Compute absolute path to frontend/dist
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIST = os.path.abspath(os.path.join(BASE_DIR, '../../frontend/dist'))
